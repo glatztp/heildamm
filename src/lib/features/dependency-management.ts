@@ -20,7 +20,7 @@ interface PackageJson {
 }
 
 export function calculateDependencyStats(
-  packageJsonPath: string,
+  packageJsonPath: string
 ): DependencyStats {
   try {
     const content = fs.readFileSync(packageJsonPath, "utf8");
@@ -45,30 +45,30 @@ export function calculateDependencyStats(
 export function displayDependencyStats(
   _projectName: string,
   packageJsonPath: string,
-  _packageManager: string,
+  _packageManager: string
 ): void {
   const stats = calculateDependencyStats(packageJsonPath);
 
   console.log(chalk.hex(COLORS.secondary)("\n   Dependency Overview:\n"));
   console.log(
     chalk.hex(COLORS.primary)(
-      `Total Dependencies: ${chalk.hex(COLORS.accent)(stats.total.toString())}`,
-    ),
+      `Total Dependencies: ${chalk.hex(COLORS.accent)(stats.total.toString())}`
+    )
   );
   console.log(
     chalk.hex(COLORS.primary)(
-      `Production: ${chalk.hex(COLORS.accent)(stats.prod.toString())}`,
-    ),
+      `Production: ${chalk.hex(COLORS.accent)(stats.prod.toString())}`
+    )
   );
   console.log(
     chalk.hex(COLORS.primary)(
-      `Development: ${chalk.hex(COLORS.accent)(stats.dev.toString())}`,
-    ),
+      `Development: ${chalk.hex(COLORS.accent)(stats.dev.toString())}`
+    )
   );
   console.log(
     chalk.hex(COLORS.primary)(
-      `Estimated Size: ${chalk.hex(COLORS.accent)(stats.size)}`,
-    ),
+      `Estimated Size: ${chalk.hex(COLORS.accent)(stats.size)}`
+    )
   );
 }
 
@@ -85,7 +85,7 @@ export function displayUpdateTip(packageManager: string): void {
   const command = getUpdateCommand(packageManager);
   console.log(
     chalk.hex(COLORS.secondary)(
-      `\n   To update dependencies: ${chalk.hex(COLORS.accent)(command)}\n`,
-    ),
+      `\n   To update dependencies: ${chalk.hex(COLORS.accent)(command)}\n`
+    )
   );
 }

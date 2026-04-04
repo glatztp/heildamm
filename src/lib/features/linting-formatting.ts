@@ -15,7 +15,7 @@ export interface LintingConfig {
 export async function promptLintingSetup(): Promise<LintingConfig> {
   try {
     console.log(
-      chalk.hex(COLORS.secondary)("\n   Development Tools Configuration\n"),
+      chalk.hex(COLORS.secondary)("\n   Development Tools Configuration\n")
     );
 
     const eslint = (await confirm({
@@ -48,7 +48,7 @@ export function generateESLintConfig(): string {
       },
     },
     null,
-    2,
+    2
   );
 }
 
@@ -63,7 +63,7 @@ export function generatePrettierConfig(): string {
       useTabs: false,
     },
     null,
-    2,
+    2
   );
 }
 
@@ -82,7 +82,7 @@ export function generateLintStagedConfig(): string {
       "*.{json,md}": ["prettier --write"],
     },
     null,
-    2,
+    2
   );
 }
 
@@ -106,7 +106,7 @@ export function getLintingDependencies(config: LintingConfig): string[] {
 
 export async function displayLintingInfo(config: LintingConfig): Promise<void> {
   console.log(
-    chalk.hex(COLORS.secondary)("\n   Development tools configured:\n"),
+    chalk.hex(COLORS.secondary)("\n   Development tools configured:\n")
   );
 
   if (config.eslint) {
