@@ -9,62 +9,90 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 
-const PRIMARY_COLOR = "#8e61c6";
-const SECONDARY_COLOR = "#a277ff";
-const ACCENT_COLOR = "#c5a3ff";
+const COLORS = {
+  primary: "#8e61c6",
+  secondary: "#a277ff",
+  accent: "#c5a3ff",
+} as const;
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const BOX = {
+  border: "─",
+  topLeft: "┌",
+  topRight: "┐",
+  bottomLeft: "└",
+  bottomRight: "┘",
+  vertical: "│",
+} as const;
+
+const USER_PROMPTS = {
+  projectName: "Project name",
+  architecture: "Select your preferred architecture",
+  variant: "Select your technology stack variant",
+  location: "Where would you like to create your project?",
+  createSubfolder:
+    "Create the project in a new subfolder? (Recommended for keeping structure clean)",
+  packageManager: "Select your preferred package manager",
+  confirmCreation: "Proceed with creating",
+  installDependencies: "Install dependencies now?",
+  openVSCode: "Open project in VS Code?",
+  projectNamePlaceholder: "my-next-app",
+  currentDirectory: "Current directory",
+  newSubfolder: "New subfolder with project name",
+  pnpmRecommended: "pnpm (recommended)",
+} as const;
 
 const ARCHITECTURES = [
   "feature-based",
   "layer-based",
   "domain-driven",
   "monorepo",
-];
-const VARIANTS = ["bare", "trpc", "prisma", "full"];
-const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn"];
+] as const;
+const VARIANTS = ["bare", "trpc", "prisma", "full"] as const;
+const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn"] as const;
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ASCII_ART = fs.readFileSync(
+  new URL("./ascii.txt", import.meta.url),
+  "utf8",
+);
 
 function clearTerminal(): void {
   process.stdout.write("\x1Bc");
+}
+
+function createBoxLine(width = 55): string {
+  const line = BOX.border.repeat(width);
+  return `   ${BOX.topLeft}${line}${BOX.topRight}`;
+}
+
+function createBottomBoxLine(width = 55): string {
+  const line = BOX.border.repeat(width);
+  return `   ${BOX.bottomLeft}${line}${BOX.bottomRight}`;
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const ascii = fs.readFileSync(new URL("./ascii.txt", import.meta.url), "utf8");
-
-async function showProgressBar(width = 40): Promise<void> {
+async function drawProgressBar(width = 40, delay = 15): Promise<void> {
   for (let i = 0; i <= width; i++) {
-    const progress = "▰".repeat(i) + "▱".repeat(width - i);
+    const progress = "█".repeat(i) + "░".repeat(width - i);
     const percent = Math.round((i / width) * 100);
     process.stdout.write(
-      `\r   ${chalk.hex(PRIMARY_COLOR)(progress)} ${percent}%`,
+      `\r   ${chalk.hex(COLORS.primary)(progress)} ${percent}%`,
     );
-    await sleep(15);
+    await sleep(delay);
   }
   console.log("\n");
 }
 
-function renderWelcome() {
-  clearTerminal();
-
-  console.log(gradient(PRIMARY_COLOR, ACCENT_COLOR).multiline(ascii));
-  console.log("");
-
-  const welcomeMsg = chalk.hex(PRIMARY_COLOR).bold("Welcome to Heildamm");
-  console.log(`   ${welcomeMsg}\n`);
-
-  const description = chalk.hex(SECONDARY_COLOR)(
-    "   This toolkit assists you in scaffolding Next.js projects\n" +
-      "   with carefully designed architectural patterns.\n",
-  );
-  console.log(description);
-
-  const docLink = chalk.hex(ACCENT_COLOR)(
-    "   Documentation: https://github.com/glatztp/create-heildamm\n",
-  );
-  console.log(docLink);
+function getInstallCommand(packageManager: string): string {
+  const commands: Record<string, string> = {
+    pnpm: "pnpm install",
+    yarn: "yarn install",
+    npm: "npm install",
+  };
+  return commands[packageManager] || "npm install";
 }
 
 function isVSCodeAvailable(): boolean {
@@ -84,169 +112,195 @@ function openVSCode(projectPath: string): void {
   }
 }
 
+function logCancelled(): void {
+  console.log(chalk.hex(COLORS.primary)("\n   Operation cancelled.\n"));
+}
+
+function logError(message: string): void {
+  console.log(chalk.hex(COLORS.primary)(`\n   ✗ Error: ${message}\n`));
+}
+
+function logSuccess(message: string): void {
+  console.log(
+    chalk
+      .hex(COLORS.accent)
+      .bold(
+        `${BOX.vertical}   ${message.padEnd(53 - BOX.vertical.length)}${BOX.vertical}`,
+      ),
+  );
+}
+
 async function installDependencies(
   targetPath: string,
   packageManager: string,
 ): Promise<void> {
   console.log(
-    chalk
-      .hex(PRIMARY_COLOR)
-      .bold(`\n   Installing dependencies with ${packageManager}...\n`),
+    chalk.hex(COLORS.primary)(
+      `\n   ↓ Installing dependencies with ${packageManager}...\n`,
+    ),
   );
 
-  const width = 40;
   try {
-    for (let i = 0; i <= width; i++) {
-      const progress = "▰".repeat(i) + "▱".repeat(width - i);
-      const percent = Math.round((i / width) * 100);
-      process.stdout.write(
-        `\r   ${chalk.hex(PRIMARY_COLOR)(progress)} ${percent}%`,
-      );
-      await sleep(Math.random() * 30);
-    }
-    console.log("\n");
-
-    const installCmd =
-      packageManager === "pnpm"
-        ? "pnpm install"
-        : packageManager === "yarn"
-          ? "yarn install"
-          : "npm install";
-
-    execSync(installCmd, { cwd: targetPath, stdio: "inherit" });
-  } catch (error) {
+    await drawProgressBar(40, Math.random() * 30);
+    execSync(getInstallCommand(packageManager), {
+      cwd: targetPath,
+      stdio: "inherit",
+    });
+  } catch {
     console.log(
-      chalk.hex(PRIMARY_COLOR)(
-        `\n   Warning: Dependency installation encountered issues.\n`,
+      chalk.hex(COLORS.primary)(
+        `\n   ⚠ Installation encountered issues. Continue anyway.\n`,
       ),
     );
   }
 }
 
-async function createProject() {
+async function promptText(
+  message: string,
+  placeholder?: string,
+  validate?: (value: string) => string | void,
+): Promise<string> {
+  try {
+    return (await text({
+      message,
+      placeholder,
+      validate,
+    })) as string;
+  } catch {
+    logCancelled();
+    process.exit(0);
+  }
+}
+
+async function promptSelect(
+  message: string,
+  options: Array<{ value: string; label: string }>,
+): Promise<string> {
+  try {
+    return (await select({
+      message,
+      options,
+    })) as string;
+  } catch {
+    logCancelled();
+    process.exit(0);
+  }
+}
+
+async function promptConfirm(message: string): Promise<boolean> {
+  try {
+    return (await confirm({ message })) as boolean;
+  } catch {
+    return false;
+  }
+}
+
+function renderWelcome(): void {
+  clearTerminal();
+  console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
+  console.log(
+    `\n   ${chalk.hex(COLORS.primary).bold("Welcome to Heildamm")}\n`,
+  );
+  console.log(
+    chalk.hex(COLORS.secondary)(
+      `   Scaffold Next.js projects with opinionated architectures\n`,
+    ),
+  );
+  console.log(
+    chalk.hex(COLORS.accent)(
+      `   Docs: https://github.com/glatztp/create-heildamm\n`,
+    ),
+  );
+}
+
+function renderSuccessMessage(nextSteps: string, targetPath: string): void {
+  clearTerminal();
+  console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
+  console.log(`\n${createBoxLine()}`);
+  logSuccess("✓ Project created successfully!");
+  console.log(`${createBottomBoxLine()}\n`);
+
+  console.log(
+    chalk.hex(COLORS.secondary)(`   ${nextSteps.split("\n").join("\n   ")}`),
+  );
+  console.log();
+
+  if (isVSCodeAvailable()) {
+    promptConfirm(USER_PROMPTS.openVSCode)
+      .then((open) => {
+        if (open) {
+          openVSCode(targetPath);
+          console.log(chalk.hex(COLORS.accent)("\n   Opening VS Code...\n"));
+        }
+      })
+      .catch(() => {
+        // Silently fail if user cancels
+      });
+  }
+}
+
+async function createProject(): Promise<void> {
   renderWelcome();
+  console.log(chalk.hex(COLORS.primary).bold("   Project Configuration\n"));
 
-  console.log(chalk.hex(PRIMARY_COLOR).bold("   Project Configuration\n"));
+  // Gather project configuration
+  const projectName = await promptText(
+    USER_PROMPTS.projectName,
+    USER_PROMPTS.projectNamePlaceholder,
+    (value) => {
+      if (!value) return "Project name is required";
+      if (!/^[a-zA-Z0-9-_]+$/.test(value))
+        return "Only letters, numbers, hyphens and underscores are allowed";
+    },
+  );
 
-  let projectName: string;
-  try {
-    projectName = (await text({
-      message: "Project name",
-      placeholder: "my-next-app",
-      validate: (value) => {
-        if (!value) return "Project name is required";
-        if (!/^[a-zA-Z0-9-_]+$/.test(value))
-          return "Only letters, numbers, hyphens and underscores are allowed";
-      },
-    })) as string;
-  } catch (e) {
-    console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
-    process.exit(0);
-  }
+  const architecture = await promptSelect(
+    USER_PROMPTS.architecture,
+    ARCHITECTURES.map((arch) => ({ value: arch, label: arch })),
+  );
 
-  let architecture: string;
-  try {
-    architecture = (await select({
-      message: "Select your preferred architecture",
-      options: ARCHITECTURES.map((arch) => ({
-        value: arch,
-        label: arch,
-      })),
-    })) as string;
-  } catch (e) {
-    console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
-    process.exit(0);
-  }
+  const variant = await promptSelect(
+    USER_PROMPTS.variant,
+    VARIANTS.map((v) => ({ value: v, label: v })),
+  );
 
-  let variant: string;
-  try {
-    variant = (await select({
-      message: "Select your technology stack variant",
-      options: VARIANTS.map((v) => ({
-        value: v,
-        label: v,
-      })),
-    })) as string;
-  } catch (e) {
-    console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
-    process.exit(0);
-  }
+  const projectLocation = await promptSelect(USER_PROMPTS.location, [
+    { value: "current", label: USER_PROMPTS.currentDirectory },
+    { value: "subfolder", label: USER_PROMPTS.newSubfolder },
+  ]);
 
-  let projectLocation: string;
-  try {
-    projectLocation = (await select({
-      message: "Where would you like to create your project?",
-      options: [
-        {
-          value: "current",
-          label: "Current directory",
-        },
-        {
-          value: "subfolder",
-          label: "New subfolder with project name",
-        },
-      ],
-    })) as string;
-  } catch (e) {
-    console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
-    process.exit(0);
-  }
-
-  let createInExisting = true;
+  let createInSubfolder = true;
   if (projectLocation === "subfolder") {
-    try {
-      createInExisting = (await confirm({
-        message:
-          "Create the project in a new subfolder? (Recommended for keeping structure clean)",
-      })) as boolean;
-    } catch (e) {
-      console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
-      process.exit(0);
-    }
+    createInSubfolder = await promptConfirm(USER_PROMPTS.createSubfolder);
   }
 
-  let packageManager: string;
-  try {
-    packageManager = (await select({
-      message: "Select your preferred package manager",
-      options: [
-        { value: "pnpm", label: "pnpm (recommended)" },
-        { value: "npm", label: "npm" },
-        { value: "yarn", label: "yarn" },
-      ],
-    })) as string;
-  } catch (e) {
-    console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
-    process.exit(0);
-  }
+  const packageManager = await promptSelect(USER_PROMPTS.packageManager, [
+    { value: "pnpm", label: USER_PROMPTS.pnpmRecommended },
+    { value: "npm", label: "npm" },
+    { value: "yarn", label: "yarn" },
+  ]);
 
-  const locationDisplay = createInExisting
+  const locationDisplay = createInSubfolder
     ? `${projectName}/`
     : "current directory";
 
-  let confirmed: boolean;
-  try {
-    confirmed = (await confirm({
-      message: `Proceed with creating ${chalk.hex(ACCENT_COLOR)(projectName)} in ${chalk.hex(ACCENT_COLOR)(locationDisplay)}?`,
-    })) as boolean;
-  } catch (e) {
-    console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
-    process.exit(0);
-  }
+  const locationName = chalk.hex(COLORS.accent)(locationDisplay);
+  const confirmed = await promptConfirm(
+    `${USER_PROMPTS.confirmCreation} ${chalk.hex(COLORS.accent)(projectName)} in ${locationName}?`,
+  );
 
   if (!confirmed) {
-    console.log(chalk.hex(PRIMARY_COLOR)("\n   Operation cancelled.\n"));
+    logCancelled();
     process.exit(0);
   }
 
+  // Create project
   try {
     clearTerminal();
-    console.log(gradient(PRIMARY_COLOR, ACCENT_COLOR).multiline(ascii));
-    console.log(
-      chalk.hex(PRIMARY_COLOR).bold("\n   Creating your project...\n"),
-    );
+    console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
+    console.log(chalk.hex(COLORS.primary)(`\n   Creating your project...\n`));
 
-    await showProgressBar();
+    await drawProgressBar();
 
     const templatePath = resolve(
       __dirname,
@@ -257,79 +311,28 @@ async function createProject() {
       variant,
     );
 
-    let targetPath: string;
-    if (createInExisting) {
-      targetPath = resolve(process.cwd(), projectName);
-    } else {
-      targetPath = process.cwd();
-    }
+    const targetPath = createInSubfolder
+      ? resolve(process.cwd(), projectName)
+      : process.cwd();
 
     await ensureDir(targetPath);
     await copy(templatePath, targetPath);
 
-    console.log(`\n${chalk.hex(PRIMARY_COLOR)("─".repeat(57))}\n`);
-    console.log(
-      chalk.hex(ACCENT_COLOR).bold(`   Project created successfully!\n`),
-    );
-
-    let autoInstall: boolean;
-    try {
-      autoInstall = (await confirm({
-        message: "Install dependencies now?",
-      })) as boolean;
-    } catch (e) {
-      autoInstall = false;
-    }
+    // Ask about dependencies
+    const autoInstall = await promptConfirm(USER_PROMPTS.installDependencies);
 
     if (autoInstall) {
       await installDependencies(targetPath, packageManager);
     }
 
-    const installCmd =
-      packageManager === "pnpm"
-        ? "pnpm install"
-        : packageManager === "yarn"
-          ? "yarn install"
-          : "npm install";
+    // Display next steps
+    const nextSteps = createInSubfolder
+      ? `cd ${projectName}\n${autoInstall ? "" : `${getInstallCommand(packageManager)}\n`}${packageManager} dev`
+      : `${autoInstall ? "" : `${getInstallCommand(packageManager)}\n`}${packageManager} dev`;
 
-    const nextSteps = createInExisting
-      ? `   cd ${projectName}\n${autoInstall ? "" : `   ${installCmd}\n`}   ${packageManager} dev`
-      : `${autoInstall ? "" : `   ${installCmd}\n`}   ${packageManager} dev`;
-
-    if (autoInstall) {
-      console.log(
-        chalk.hex(SECONDARY_COLOR)(
-          `\n   Dependencies installed! Ready to start:\n\n${nextSteps}\n`,
-        ),
-      );
-    } else {
-      console.log(
-        chalk.hex(SECONDARY_COLOR)(`\n   Next steps:\n\n${nextSteps}\n`),
-      );
-    }
-    console.log(`${chalk.hex(PRIMARY_COLOR)("─".repeat(57))}\n`);
-
-    if (isVSCodeAvailable()) {
-      let openVSCodeNow: boolean;
-      try {
-        openVSCodeNow = (await confirm({
-          message: "Open project in VS Code?",
-        })) as boolean;
-
-        if (openVSCodeNow) {
-          openVSCode(targetPath);
-          console.log(chalk.hex(ACCENT_COLOR)("   Opening VS Code...\n"));
-        }
-      } catch (e) {
-        // Silently fail if user cancels
-      }
-    }
+    renderSuccessMessage(nextSteps, targetPath);
   } catch (error) {
-    console.log(
-      chalk.hex(PRIMARY_COLOR)(
-        `\n   Error creating project: ${(error as Error).message}\n`,
-      ),
-    );
+    logError((error as Error).message);
     process.exit(1);
   }
 }
@@ -337,11 +340,16 @@ async function createProject() {
 async function run(): Promise<void> {
   const args = process.argv.slice(2);
 
-  if (args[0] === "--help" || args[0] === "-h") {
+  if (args.includes("--help") || args.includes("-h")) {
     renderWelcome();
   } else {
     await createProject();
   }
 }
 
-run();
+run().catch((error) => {
+  logError(
+    error instanceof Error ? error.message : "An unknown error occurred",
+  );
+  process.exit(1);
+});
