@@ -1,9 +1,10 @@
+/* eslint-disable no-useless-escape */
 export function generateReadme(
   projectName: string,
   architecture: string,
   variant: string,
   packageManager: string,
-  hasLinting: boolean,
+  hasLinting: boolean
 ): string {
   const startCommand =
     packageManager === "yarn" ? "yarn dev" : `${packageManager} dev`;
@@ -85,7 +86,7 @@ ${getProjectStructureGuide(architecture)}
 - \`next.config.ts\` - Next.js configuration
 - \`tsconfig.json\` - TypeScript configuration${variant === "prisma" || variant === "full" ? "\n- \`prisma/schema.prisma\` - Database schema" : ""}${hasLinting ? "\n- \`.eslintrc.json\` - ESLint configuration\n- \`.prettierrc\` - Prettier configuration" : ""}
 
-## Learn More
+## Learn More 
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [React Documentation](https://react.dev)${variant === "trpc" ? "\n- [tRPC Documentation](https://trpc.io)" : ""}${variant === "prisma" || variant === "full" ? "\n- [Prisma Documentation](https://www.prisma.io/docs)" : ""}

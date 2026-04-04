@@ -34,15 +34,6 @@ const COLORS = {
   accent: "#c5a3ff",
 } as const;
 
-const BOX = {
-  border: "─",
-  topLeft: "┌",
-  topRight: "┐",
-  bottomLeft: "└",
-  bottomRight: "┘",
-  vertical: "│",
-} as const;
-
 const USER_PROMPTS = {
   projectName: "Project name",
   architecture: "Select your preferred architecture",
@@ -76,16 +67,6 @@ const ASCII_ART = fs.readFileSync(
 
 function clearTerminal(): void {
   process.stdout.write("\x1Bc");
-}
-
-function createBoxLine(width = 55): string {
-  const line = BOX.border.repeat(width);
-  return `   ${BOX.topLeft}${line}${BOX.topRight}`;
-}
-
-function createBottomBoxLine(width = 55): string {
-  const line = BOX.border.repeat(width);
-  return `   ${BOX.bottomLeft}${line}${BOX.bottomRight}`;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -135,17 +116,7 @@ function logCancelled(): void {
 }
 
 function logError(message: string): void {
-  console.log(chalk.hex(COLORS.primary)(`\n   ✗ Error: ${message}\n`));
-}
-
-function logSuccess(message: string): void {
-  console.log(
-    chalk
-      .hex(COLORS.accent)
-      .bold(
-        `${BOX.vertical}   ${message.padEnd(53 - BOX.vertical.length)}${BOX.vertical}`
-      )
-  );
+  console.log(chalk.hex(COLORS.primary)(`\n   Error: ${message}\n`));
 }
 
 async function installDependencies(
