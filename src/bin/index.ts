@@ -9,6 +9,25 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 
+// Feature imports
+import { checkForUpdates } from "../lib/features/update-checker.js";
+import {
+  initializeAnalytics,
+  setAnalyticsEnabled,
+  trackProjectCreation,
+} from "../lib/utils/analytics.js";
+import {
+  promptLintingSetup,
+  displayLintingInfo,
+} from "../lib/features/linting-formatting.js";
+import { displayDependencyStats } from "../lib/features/dependency-management.js";
+import { displayProjectStructure } from "../lib/features/project-visualization.js";
+import {
+  displaySummaryScreen,
+  displayResourceLinks,
+} from "../lib/features/summary-screen.js";
+import { generateReadme } from "../lib/features/readme-generator.js";
+
 const COLORS = {
   primary: "#8e61c6",
   secondary: "#a277ff",
@@ -48,7 +67,6 @@ const ARCHITECTURES = [
   "monorepo",
 ] as const;
 const VARIANTS = ["bare", "trpc", "prisma", "full"] as const;
-const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn"] as const;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASCII_ART = fs.readFileSync(
@@ -213,34 +231,15 @@ function renderWelcome(): void {
   );
 }
 
-function renderSuccessMessage(nextSteps: string, targetPath: string): void {
-  clearTerminal();
-  console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
-  console.log(`\n${createBoxLine()}`);
-  logSuccess("✓ Project created successfully!");
-  console.log(`${createBottomBoxLine()}\n`);
-
-  console.log(
-    chalk.hex(COLORS.secondary)(`   ${nextSteps.split("\n").join("\n   ")}`),
-  );
-  console.log();
-
-  if (isVSCodeAvailable()) {
-    promptConfirm(USER_PROMPTS.openVSCode)
-      .then((open) => {
-        if (open) {
-          openVSCode(targetPath);
-          console.log(chalk.hex(COLORS.accent)("\n   Opening VS Code...\n"));
-        }
-      })
-      .catch(() => {
-        // Silently fail if user cancels
-      });
-  }
-}
-
 async function createProject(): Promise<void> {
   renderWelcome();
+
+  // Check for updates
+  await checkForUpdates();
+
+  // Initialize analytics
+  await initializeAnalytics();
+
   console.log(chalk.hex(COLORS.primary).bold("   Project Configuration\n"));
 
   // Gather project configuration
@@ -264,6 +263,9 @@ async function createProject(): Promise<void> {
     VARIANTS.map((v) => ({ value: v, label: v })),
   );
 
+  // Display project structure preview
+  displayProjectStructure(architecture, variant);
+
   const projectLocation = await promptSelect(USER_PROMPTS.location, [
     { value: "current", label: USER_PROMPTS.currentDirectory },
     { value: "subfolder", label: USER_PROMPTS.newSubfolder },
@@ -279,6 +281,19 @@ async function createProject(): Promise<void> {
     { value: "npm", label: "npm" },
     { value: "yarn", label: "yarn" },
   ]);
+
+  // Prompt for linting setup
+  const lintingConfig = await promptLintingSetup();
+  await displayLintingInfo(lintingConfig);
+
+  // Analytics opt-in
+  const enableAnalytics = await promptConfirm(
+    "\n Enable anonymous analytics to help improve Heildamm?",
+  );
+  if (enableAnalytics) {
+    setAnalyticsEnabled(true);
+    console.log(chalk.hex(COLORS.accent)("   Analytics enabled\n"));
+  }
 
   const locationDisplay = createInSubfolder
     ? `${projectName}/`
@@ -318,6 +333,16 @@ async function createProject(): Promise<void> {
     await ensureDir(targetPath);
     await copy(templatePath, targetPath);
 
+    // Generate README with customization
+    const readmeContent = generateReadme(
+      projectName,
+      architecture,
+      variant,
+      packageManager,
+      lintingConfig.eslint,
+    );
+    fs.writeFileSync(resolve(targetPath, "README.md"), readmeContent);
+
     // Ask about dependencies
     const autoInstall = await promptConfirm(USER_PROMPTS.installDependencies);
 
@@ -325,12 +350,41 @@ async function createProject(): Promise<void> {
       await installDependencies(targetPath, packageManager);
     }
 
-    // Display next steps
-    const nextSteps = createInSubfolder
-      ? `cd ${projectName}\n${autoInstall ? "" : `${getInstallCommand(packageManager)}\n`}${packageManager} dev`
-      : `${autoInstall ? "" : `${getInstallCommand(packageManager)}\n`}${packageManager} dev`;
+    // Track analytics
+    await trackProjectCreation(projectName, architecture, variant);
 
-    renderSuccessMessage(nextSteps, targetPath);
+    // Display summary screen
+    clearTerminal();
+    console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
+
+    displaySummaryScreen({
+      name: projectName,
+      architecture,
+      variant,
+      packageManager,
+      location: createInSubfolder ? `${projectName}/` : ".",
+      hasLinting: lintingConfig,
+      autoInstalled: autoInstall,
+    });
+
+    // Display dependency stats
+    displayDependencyStats(
+      projectName,
+      resolve(targetPath, "package.json"),
+      packageManager,
+    );
+
+    // Display resources
+    displayResourceLinks();
+
+    // Ask about opening VS Code
+    if (isVSCodeAvailable()) {
+      const open = await promptConfirm(USER_PROMPTS.openVSCode);
+      if (open) {
+        openVSCode(targetPath);
+        console.log(chalk.hex(COLORS.accent)("   Opening VS Code...\n"));
+      }
+    }
   } catch (error) {
     logError((error as Error).message);
     process.exit(1);
