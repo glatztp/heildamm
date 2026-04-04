@@ -1,6 +1,6 @@
 {
   "name": "@heildamm/create-heildamm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Scaffold Next.js projects with opinionated folder architectures",
   "type": "module",
   "bin": {
