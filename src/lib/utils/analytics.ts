@@ -31,7 +31,7 @@ export async function initializeAnalytics(): Promise<void> {
 export function isAnalyticsEnabled(): boolean {
   try {
     const data = JSON.parse(
-      fs.readFileSync(ANALYTICS_FILE, "utf8"),
+      fs.readFileSync(ANALYTICS_FILE, "utf8")
     ) as AnalyticsData;
     return data.enabled;
   } catch {
@@ -65,7 +65,7 @@ export function updateAnalyticsData(data: AnalyticsData): void {
 export async function trackProjectCreation(
   projectName: string,
   architecture: string,
-  variant: string,
+  variant: string
 ): Promise<void> {
   if (!isAnalyticsEnabled()) return;
 
@@ -77,7 +77,7 @@ export async function trackProjectCreation(
 
     // Could be extended with remote tracking later
     console.log(
-      `[Analytics] Project created: ${projectName} (${architecture}/${variant})`,
+      `[Analytics] Project created: ${projectName} (${architecture}/${variant})`
     );
   } catch {
     // Silently fail

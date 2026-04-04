@@ -16,10 +16,7 @@ interface UpdateCache {
 function getCurrentVersion(): string {
   try {
     const packageJson = JSON.parse(
-      fs.readFileSync(
-        join(__dirname, "..", "..", "..", "package.json"),
-        "utf8",
-      ),
+      fs.readFileSync(join(__dirname, "..", "..", "..", "package.json"), "utf8")
     );
     return packageJson.version;
   } catch {
@@ -30,7 +27,7 @@ function getCurrentVersion(): string {
 async function fetchLatestVersion(): Promise<string | null> {
   try {
     const response = await fetch(
-      "https://registry.npmjs.org/create-heildamm/latest",
+      "https://registry.npmjs.org/create-heildamm/latest"
     );
     if (!response.ok) return null;
 
@@ -61,7 +58,7 @@ function getCachedVersion(): string | null {
     if (!fs.existsSync(UPDATE_CACHE_FILE)) return null;
 
     const data = JSON.parse(
-      fs.readFileSync(UPDATE_CACHE_FILE, "utf8"),
+      fs.readFileSync(UPDATE_CACHE_FILE, "utf8")
     ) as UpdateCache;
     const now = Date.now();
 
@@ -109,13 +106,13 @@ export async function checkForUpdates(): Promise<void> {
   if (comparison < 0) {
     console.log(
       chalk.hex("#a277ff")(
-        `\n   A new version of create-heildamm is available: ${latestVersion}`,
-      ),
+        `\n   A new version of create-heildamm is available: ${latestVersion}`
+      )
     );
     console.log(
       chalk.hex("#a277ff")(
-        `   Execute: npm install -g create-heildamm@latest\n`,
-      ),
+        `   Execute: npm install -g create-heildamm@latest\n`
+      )
     );
   }
 }

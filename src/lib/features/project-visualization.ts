@@ -8,7 +8,7 @@ const COLORS = {
 
 export function visualizeArchitecture(
   architecture: string,
-  variant: string,
+  variant: string
 ): string {
   const visualizations: Record<string, Record<string, string>> = {
     "feature-based": {
@@ -197,12 +197,12 @@ export function visualizeArchitecture(
 
 export function displayProjectStructure(
   architecture: string,
-  variant: string,
+  variant: string
 ): void {
   const visualization = visualizeArchitecture(architecture, variant);
 
   console.log(
-    chalk.hex(COLORS.secondary)("\n   Project Structure Visualization:\n"),
+    chalk.hex(COLORS.secondary)("\n   Project Structure Visualization:\n")
   );
   console.log(chalk.hex(COLORS.primary)(visualization));
 }

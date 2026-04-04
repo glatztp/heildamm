@@ -29,6 +29,12 @@ interface ProjectConfig {
     husky: boolean;
   };
   autoInstalled: boolean;
+  dependencyStats?: {
+    total: number;
+    prod: number;
+    dev: number;
+    size: string;
+  };
 }
 
 function createSummaryBox(width = 60): string {
@@ -62,7 +68,7 @@ export function displaySummaryScreen(config: ProjectConfig): void {
   console.log(
     chalk
       .hex(COLORS.accent)
-      .bold(`${BOX.vertical} ${headerPadded} ${BOX.vertical}`),
+      .bold(`${BOX.vertical} ${headerPadded} ${BOX.vertical}`)
   );
 
   console.log(chalk.hex(COLORS.secondary)(createSeparator(boxWidth)));
@@ -78,8 +84,11 @@ export function displaySummaryScreen(config: ProjectConfig): void {
   rows.forEach(([label, value]) => {
     const content = `${label}: ${value}`;
     const padding = " ".repeat(Math.max(0, width - content.length));
+    const line = `${BOX.vertical} ${label}: ${value}${padding} ${BOX.vertical}`;
     console.log(
-      `${BOX.vertical} ${label}: ${chalk.hex(COLORS.accent)(value)}${padding} ${BOX.vertical}`,
+      chalk.hex(COLORS.primary)(
+        line.replace(value, chalk.hex(COLORS.accent)(value))
+      )
     );
   });
 
@@ -99,12 +108,34 @@ export function displaySummaryScreen(config: ProjectConfig): void {
     if (config.hasLinting.husky) tools.push("Husky");
 
     tools.forEach((tool) => {
-      const toolStr = ` - ${tool}`;
-      const toolPadding = " ".repeat(Math.max(0, width - toolStr.length));
+      const toolStr = `- ${tool}`;
+      const padding = " ".repeat(Math.max(0, width - toolStr.length));
+      const line = `${BOX.vertical} ${toolStr}${padding} ${BOX.vertical}`;
+      console.log(chalk.hex(COLORS.primary)(line));
+    });
+  }
+
+  if (config.dependencyStats) {
+    console.log(chalk.hex(COLORS.secondary)(createSeparator(boxWidth)));
+    const depsLabel = "Dependency Overview:";
+    const depsPadding = " ".repeat(Math.max(0, width - depsLabel.length));
+    console.log(`${BOX.vertical} ${depsLabel}${depsPadding} ${BOX.vertical}`);
+
+    const depLines: Array<[string, string]> = [
+      ["Total Dependencies", config.dependencyStats.total.toString()],
+      ["Production", config.dependencyStats.prod.toString()],
+      ["Development", config.dependencyStats.dev.toString()],
+      ["Estimated Size", config.dependencyStats.size],
+    ];
+
+    depLines.forEach(([label, value]) => {
+      const content = `${label}: ${value}`;
+      const padding = " ".repeat(Math.max(0, width - content.length));
+      const line = `${BOX.vertical} ${label}: ${value}${padding} ${BOX.vertical}`;
       console.log(
         chalk.hex(COLORS.primary)(
-          `${BOX.vertical}${toolStr}${toolPadding} ${BOX.vertical}`,
-        ),
+          line.replace(value, chalk.hex(COLORS.accent)(value))
+        )
       );
     });
   }
@@ -124,7 +155,7 @@ export function displayResourceLinks(): void {
   resources.forEach(([name, url]) => {
     console.log(
       chalk.hex(COLORS.primary)(`   - ${name}:`),
-      chalk.hex(COLORS.accent)(url),
+      chalk.hex(COLORS.accent)(url)
     );
   });
 

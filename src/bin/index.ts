@@ -8,8 +8,6 @@ import { copy, ensureDir } from "fs-extra";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
-
-// Feature imports
 import { checkForUpdates } from "../lib/features/update-checker.js";
 import {
   initializeAnalytics,
@@ -20,7 +18,7 @@ import {
   promptLintingSetup,
   displayLintingInfo,
 } from "../lib/features/linting-formatting.js";
-import { displayDependencyStats } from "../lib/features/dependency-management.js";
+import { calculateDependencyStats } from "../lib/features/dependency-management.js";
 import { displayProjectStructure } from "../lib/features/project-visualization.js";
 import {
   displaySummaryScreen,
@@ -106,13 +104,19 @@ function isVSCodeAvailable(): boolean {
 function openVSCode(projectPath: string): void {
   try {
     execSync(`code "${projectPath}"`, { stdio: "ignore" });
-  } catch {
-    // Silently fail if VS Code open fails
-  }
+  } catch {}
 }
 
 function logCancelled(): void {
   console.log(chalk.hex(COLORS.primary)("\n   Operation cancelled.\n"));
+}
+
+function processPackageJson(filePath: string, projectName: string): void {
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const updated = content.replace(/\{\{projectName\}\}/g, projectName);
+    fs.writeFileSync(filePath, updated, "utf-8");
+  } catch (error) {}
 }
 
 function logError(message: string): void {
@@ -205,15 +209,11 @@ function renderWelcome(): void {
 async function createProject(): Promise<void> {
   renderWelcome();
 
-  // Check for updates
   await checkForUpdates();
-
-  // Initialize analytics
   await initializeAnalytics();
 
   console.log(chalk.hex(COLORS.primary).bold("   Project Configuration\n"));
 
-  // Gather project configuration
   const projectName = await promptText(
     USER_PROMPTS.projectName,
     USER_PROMPTS.projectNamePlaceholder,
@@ -234,7 +234,6 @@ async function createProject(): Promise<void> {
     VARIANTS.map((v) => ({ value: v, label: v }))
   );
 
-  // Display project structure preview
   displayProjectStructure(architecture, variant);
 
   const projectLocation = await promptSelect(USER_PROMPTS.location, [
@@ -253,11 +252,9 @@ async function createProject(): Promise<void> {
     { value: "yarn", label: "yarn" },
   ]);
 
-  // Prompt for linting setup
   const lintingConfig = await promptLintingSetup();
   await displayLintingInfo(lintingConfig);
 
-  // Analytics opt-in
   const enableAnalytics = await promptConfirm(
     "\n Enable anonymous analytics to help improve Heildamm?"
   );
@@ -280,7 +277,6 @@ async function createProject(): Promise<void> {
     process.exit(0);
   }
 
-  // Create project
   try {
     clearTerminal();
     console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
@@ -303,8 +299,8 @@ async function createProject(): Promise<void> {
 
     await ensureDir(targetPath);
     await copy(templatePath, targetPath);
+    processPackageJson(resolve(targetPath, "package.json"), projectName);
 
-    // Generate README with customization
     const readmeContent = generateReadme(
       projectName,
       architecture,
@@ -314,19 +310,20 @@ async function createProject(): Promise<void> {
     );
     fs.writeFileSync(resolve(targetPath, "README.md"), readmeContent);
 
-    // Ask about dependencies
     const autoInstall = await promptConfirm(USER_PROMPTS.installDependencies);
 
     if (autoInstall) {
       await installDependencies(targetPath, packageManager);
     }
 
-    // Track analytics
     await trackProjectCreation(projectName, architecture, variant);
 
-    // Display summary screen
     clearTerminal();
     console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
+
+    const dependencyStats = calculateDependencyStats(
+      resolve(targetPath, "package.json")
+    );
 
     displaySummaryScreen({
       name: projectName,
@@ -336,19 +333,11 @@ async function createProject(): Promise<void> {
       location: createInSubfolder ? `${projectName}/` : ".",
       hasLinting: lintingConfig,
       autoInstalled: autoInstall,
+      dependencyStats,
     });
 
-    // Display dependency stats
-    displayDependencyStats(
-      projectName,
-      resolve(targetPath, "package.json"),
-      packageManager
-    );
-
-    // Display resources
     displayResourceLinks();
 
-    // Ask about opening VS Code
     if (isVSCodeAvailable()) {
       const open = await promptConfirm(USER_PROMPTS.openVSCode);
       if (open) {
