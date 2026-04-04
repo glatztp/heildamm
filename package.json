@@ -1,0 +1,40 @@
+{
+  "name": "@heildamm/create-heildamm",
+  "version": "1.0.0",
+  "description": "Scaffold Next.js projects with opinionated folder architectures",
+  "type": "module",
+  "bin": {
+    "create-heildamm": "./dist/bin/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/bin/index.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "chalk": "^5.6.2",
+    "fs-extra": "^11.2.0",
+    "gradient-string": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "create-next-app",
+    "scaffold",
+    "nextjs",
+    "heildamm"
+  ],
+  "license": "MIT"
+}

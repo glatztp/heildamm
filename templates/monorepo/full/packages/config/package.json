@@ -1,0 +1,7 @@
+{
+  "name": "@{{projectName}}/config",
+  "version": "0.1.0",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
