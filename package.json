@@ -13,7 +13,10 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
+    "activity": "node scripts/show-activity.js",
+    "setup-hooks": "node scripts/setup-hooks.js",
+    "postinstall": "node scripts/setup-hooks.js"
   },
   "files": [
     "dist",
