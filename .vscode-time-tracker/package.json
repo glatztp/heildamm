@@ -1,0 +1,68 @@
+{
+  "name": "heildamm-time-tracker",
+  "displayName": "Heildamm Time Tracker",
+  "description": "Rastreia tempo de atividade em tempo real sem limites",
+  "version": "1.0.0",
+  "publisher": "heildamm",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "heildamm-time-tracker.show-stats",
+        "title": "Show All Stats"
+      },
+      {
+        "command": "heildamm-time-tracker.show-today",
+        "title": "Show Today Stats"
+      },
+      {
+        "command": "heildamm-time-tracker.open-dashboard",
+        "title": "Open Dashboard"
+      },
+      {
+        "command": "heildamm-time-tracker.open-data-dir",
+        "title": "Open Data Directory"
+      },
+      {
+        "command": "heildamm-time-tracker.clear-data",
+        "title": "Clear All Data"
+      }
+    ],
+    "configuration": {
+      "title": "Heildamm Time Tracker",
+      "properties": {
+        "heildamm-time-tracker.idleTime": {
+          "type": "number",
+          "default": 5,
+          "description": "Minutos de inatividade para contar como pausa"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "pretest": "npm run esbuild && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.21.0"
+  }
+}
