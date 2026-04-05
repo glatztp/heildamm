@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { type CICDConfig } from "../../features/ci-cd/index.js";
 
 const COLORS = {
   primary: "#8e61c6",
@@ -28,6 +29,7 @@ interface ProjectConfig {
     prettier: boolean;
     husky: boolean;
   };
+  hasCICD?: CICDConfig;
   autoInstalled: boolean;
   dependencyStats?: {
     total: number;
@@ -113,6 +115,26 @@ export function displaySummaryScreen(config: ProjectConfig): void {
       const line = `${BOX.vertical} ${toolStr}${padding} ${BOX.vertical}`;
       console.log(chalk.hex(COLORS.primary)(line));
     });
+  }
+
+  if (config.hasCICD && config.hasCICD.enabled) {
+    console.log(chalk.hex(COLORS.secondary)(createSeparator(boxWidth)));
+    const cicdLabel = "CI/CD Configuration:";
+    const cicdPadding = " ".repeat(Math.max(0, width - cicdLabel.length));
+    console.log(`${BOX.vertical} ${cicdLabel}${cicdPadding} ${BOX.vertical}`);
+
+    const platformNames: Record<string, string> = {
+      github: "GitHub Actions",
+      gitlab: "GitLab CI/CD",
+      azure: "Azure DevOps",
+      none: "None",
+    };
+
+    const platform = config.hasCICD.platform || "none";
+    const platformStr = `- ${platformNames[platform] || platform}`;
+    const padding = " ".repeat(Math.max(0, width - platformStr.length));
+    const line = `${BOX.vertical} ${platformStr}${padding} ${BOX.vertical}`;
+    console.log(chalk.hex(COLORS.primary)(line));
   }
 
   if (config.dependencyStats) {

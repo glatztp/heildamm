@@ -25,6 +25,13 @@ import {
   displayResourceLinks,
 } from "../lib/features/summary-screen.js";
 import { generateReadme } from "../lib/features/readme-generator.js";
+import {
+  displayCICDInfo,
+  saveCICDFiles,
+  getCICDPromptOptions,
+  type CICDConfig,
+  type CICDPlatform,
+} from "../features/ci-cd/index.js";
 
 const COLORS = {
   primary: "#8e61c6",
@@ -40,6 +47,8 @@ const USER_PROMPTS = {
   createSubfolder:
     "Create the project in a new subfolder? (Recommended for keeping structure clean)",
   packageManager: "Select your preferred package manager",
+  cicdSetup: "Would you like to set up CI/CD?",
+  cicdPlatform: "Select your CI/CD platform",
   confirmCreation: "Proceed with creating",
   installDependencies: "Install dependencies now?",
   openVSCode: "Open project in VS Code?",
@@ -104,7 +113,9 @@ function isVSCodeAvailable(): boolean {
 function openVSCode(projectPath: string): void {
   try {
     execSync(`code "${projectPath}"`, { stdio: "ignore" });
-  } catch {}
+  } catch {
+    // Ignore errors when trying to open VS Code
+  }
 }
 
 function logCancelled(): void {
@@ -116,7 +127,9 @@ function processPackageJson(filePath: string, projectName: string): void {
     const content = fs.readFileSync(filePath, "utf-8");
     const updated = content.replace(/\{\{projectName\}\}/g, projectName);
     fs.writeFileSync(filePath, updated, "utf-8");
-  } catch (error) {}
+  } catch {
+    // If there's an error processing package.json, we can ignore it
+  }
 }
 
 function logError(message: string): void {
@@ -255,6 +268,24 @@ async function createProject(): Promise<void> {
   const lintingConfig = await promptLintingSetup();
   await displayLintingInfo(lintingConfig);
 
+  const withCICD = await promptConfirm(USER_PROMPTS.cicdSetup);
+  let cicdConfig: CICDConfig = { enabled: false };
+
+  if (withCICD) {
+    const cicdPlatform = (await promptSelect(
+      USER_PROMPTS.cicdPlatform,
+      getCICDPromptOptions()
+    )) as CICDPlatform;
+
+    cicdConfig = {
+      enabled: cicdPlatform !== "none",
+      platform: cicdPlatform,
+    };
+    await displayCICDInfo(cicdConfig);
+  } else {
+    await displayCICDInfo(cicdConfig);
+  }
+
   const enableAnalytics = await promptConfirm(
     "\n Enable anonymous analytics to help improve Heildamm?"
   );
@@ -301,6 +332,8 @@ async function createProject(): Promise<void> {
     await copy(templatePath, targetPath);
     processPackageJson(resolve(targetPath, "package.json"), projectName);
 
+    await saveCICDFiles(targetPath, cicdConfig, packageManager);
+
     const readmeContent = generateReadme(
       projectName,
       architecture,
@@ -332,6 +365,7 @@ async function createProject(): Promise<void> {
       packageManager,
       location: createInSubfolder ? `${projectName}/` : ".",
       hasLinting: lintingConfig,
+      hasCICD: cicdConfig,
       autoInstalled: autoInstall,
       dependencyStats,
     });
