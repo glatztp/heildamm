@@ -8,23 +8,18 @@ import { copy, ensureDir } from "fs-extra";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
-import { checkForUpdates } from "../lib/features/update-checker.js";
-import {
-  initializeAnalytics,
-  setAnalyticsEnabled,
-  trackProjectCreation,
-} from "../lib/utils/analytics.js";
+import { checkForUpdates } from "../features/updates/index.js";
 import {
   promptLintingSetup,
   displayLintingInfo,
-} from "../lib/features/linting-formatting.js";
-import { calculateDependencyStats } from "../lib/features/dependency-management.js";
-import { displayProjectStructure } from "../lib/features/project-visualization.js";
+} from "../features/linting/index.js";
+import { calculateDependencyStats } from "../features/dependencies/index.js";
+import { displayProjectStructure } from "../features/visualization/index.js";
 import {
   displaySummaryScreen,
   displayResourceLinks,
-} from "../lib/features/summary-screen.js";
-import { generateReadme } from "../lib/features/readme-generator.js";
+} from "../features/summary/index.js";
+import { generateReadme } from "../features/readme/index.js";
 import {
   displayCICDInfo,
   saveCICDFiles,
@@ -32,6 +27,12 @@ import {
   type CICDConfig,
   type CICDPlatform,
 } from "../features/ci-cd/index.js";
+import {
+  initializeAnalytics,
+  setAnalyticsEnabled,
+  trackProjectCreation,
+} from "../utils/analytics.js";
+import { handleAnalyticsCommand } from "../features/analytics/index.js";
 
 const COLORS = {
   primary: "#8e61c6",
@@ -291,8 +292,11 @@ async function createProject(): Promise<void> {
   );
   if (enableAnalytics) {
     setAnalyticsEnabled(true);
-    console.log(chalk.hex(COLORS.accent)("   Analytics enabled\n"));
+    console.log(chalk.hex(COLORS.accent)("   Analytics enabled"));
+  } else {
+    console.log(chalk.hex(COLORS.accent)("   Analytics disabled"));
   }
+  console.log("");
 
   const locationDisplay = createInSubfolder
     ? `${projectName}/`
@@ -349,7 +353,12 @@ async function createProject(): Promise<void> {
       await installDependencies(targetPath, packageManager);
     }
 
-    await trackProjectCreation(projectName, architecture, variant);
+    await trackProjectCreation(
+      architecture,
+      variant,
+      packageManager,
+      cicdConfig
+    );
 
     clearTerminal();
     console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
@@ -387,6 +396,13 @@ async function createProject(): Promise<void> {
 
 async function run(): Promise<void> {
   const args = process.argv.slice(2);
+
+  // Handle analytics command
+  if (args[0] === "analytics") {
+    await initializeAnalytics();
+    await handleAnalyticsCommand(args[1]);
+    return;
+  }
 
   if (args.includes("--help") || args.includes("-h")) {
     renderWelcome();
