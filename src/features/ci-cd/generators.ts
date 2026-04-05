@@ -6,7 +6,6 @@ import {
 } from "./commands.js";
 
 export function generateGitHubWorkflow(
-  projectName: string,
   packageManager: string
 ): string {
   return `name: CI/CD
@@ -135,7 +134,6 @@ deploy:
 }
 
 export function generateAzurePipeline(
-  projectName: string,
   packageManager: string
 ): string {
   return `trigger:

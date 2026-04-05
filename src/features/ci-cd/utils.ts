@@ -39,7 +39,7 @@ export async function saveCICDFiles(
   if (platform === "github") {
     const workflowDir = resolve(targetPath, ".github", "workflows");
     await ensureDir(workflowDir);
-    const workflow = generateGitHubWorkflow("", packageManager);
+    const workflow = generateGitHubWorkflow("");
     fs.writeFileSync(resolve(workflowDir, "ci-cd.yml"), workflow, "utf-8");
   } else if (platform === "gitlab") {
     const gitlabCi = generateGitLabCI("", packageManager);
@@ -47,7 +47,7 @@ export async function saveCICDFiles(
   } else if (platform === "azure") {
     const azureDir = resolve(targetPath, "azure-pipelines");
     await ensureDir(azureDir);
-    const pipeline = generateAzurePipeline("", packageManager);
+    const pipeline = generateAzurePipeline("");
     fs.writeFileSync(resolve(azureDir, "pipeline.yml"), pipeline, "utf-8");
   }
 }
