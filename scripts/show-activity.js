@@ -4,15 +4,22 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import process from "process";
+import chalk from "chalk";
 
 const { log } = globalThis.console;
+
+const COLORS = {
+  primary: "#8e61c6",
+  secondary: "#a277ff",
+  accent: "#c5a3ff",
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const activityFile = path.join(__dirname, "..", ".activity.json");
 
 if (!fs.existsSync(activityFile)) {
-  log("\n📋 Nenhuma atividade registrada ainda\n");
+  log(chalk.yellow("   Nenhuma atividade registrada ainda\n"));
   process.exit(0);
 }
 
@@ -20,42 +27,34 @@ let activities = [];
 try {
   activities = JSON.parse(fs.readFileSync(activityFile, "utf-8"));
 } catch {
-  log("\n📋 Nenhuma atividade registrada ainda\n");
+  log(chalk.yellow("   Nenhuma atividade registrada ainda\n"));
   process.exit(0);
 }
 
-const colors = {
-  reset: "\x1b[0m",
-  bright: "\x1b[1m",
-  dim: "\x1b[2m",
-  cyan: "\x1b[36m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  red: "\x1b[31m",
-  blue: "\x1b[34m",
-  gray: "\x1b[90m",
+// Calcular tempo estimado por linha modificada
+const estimateHours = (insertions, deletions) => {
+  const totalLines = (insertions || 0) + (deletions || 0);
+  const hours = Math.ceil(totalLines / 100);
+  return Math.max(0.25, hours); // minimo 15 min
 };
 
+log("\n");
 log(
-  "\n" +
-    colors.cyan +
-    colors.bright +
-    "═══════════════════════════════════════════════════════════════════" +
-    colors.reset,
+  chalk.bold.hex(COLORS.primary)(
+    "═══════════════════════════════════════════════════════════════════",
+  ),
 );
 log(
-  colors.cyan +
-    colors.bright +
-    "                    📊 RELATÓRIO DE ATIVIDADES" +
-    colors.reset,
+  chalk.bold.hex(COLORS.primary)(
+    "                      RELATORIO DE ATIVIDADES",
+  ),
 );
 log(
-  colors.cyan +
-    colors.bright +
-    "═══════════════════════════════════════════════════════════════════" +
-    colors.reset +
-    "\n",
+  chalk.bold.hex(COLORS.primary)(
+    "═══════════════════════════════════════════════════════════════════",
+  ),
 );
+log("\n");
 
 const byAuthor = {};
 activities.forEach((act) => {
@@ -73,55 +72,55 @@ Object.keys(byAuthor).forEach((author) => {
   );
   const totalDeletions = stats.reduce((sum, s) => sum + (s.deletions || 0), 0);
   const totalFiles = new Set(stats.flatMap((s) => s.files || [])).size;
-
-  log(colors.bright + colors.blue + `👤 ${author}` + colors.reset);
-  log(colors.dim + `   Email: ${colors.reset}${stats[0].email || "N/A"}`);
-  log(
-    colors.green +
-      `   ✚ ${totalInsertions} linhas adicionadas` +
-      colors.reset +
-      colors.red +
-      ` | ✖ ${totalDeletions} linhas removidas` +
-      colors.reset +
-      colors.yellow +
-      ` | 📁 ${totalFiles} arquivos` +
-      colors.reset,
+  const totalHours = stats.reduce(
+    (sum, s) => sum + estimateHours(s.insertions, s.deletions),
+    0,
   );
-  log(colors.dim + `   ${stats.length} commits total` + colors.reset);
+
+  log(chalk.hex(COLORS.primary).bold(`  ${author}`));
+  log(chalk.gray(`    Email: ${stats[0].email || "N/A"}`));
+  log(
+    chalk.hex(COLORS.secondary)(`    + ${totalInsertions} linhas`) +
+      chalk.red(` | - ${totalDeletions} linhas`) +
+      chalk.hex(COLORS.accent)(` | ${totalFiles} arquivos`),
+  );
+  log(
+    chalk.white(
+      `    ${totalHours.toFixed(1)}h trabalhadas | ${stats.length} commits`,
+    ),
+  );
   log();
 });
 
 log(
-  colors.cyan +
-    colors.bright +
-    "─────────────────────────────────────────────────────────────────────" +
-    colors.reset,
+  chalk.bold.hex(COLORS.primary)(
+    "─────────────────────────────────────────────────────────────────────",
+  ),
 );
-log(colors.bright + "🔄 Últimos 10 Commits:" + colors.reset + "\n");
+log(chalk.bold.hex(COLORS.primary)("  Ultimos 10 Commits:\n"));
 
 const recent = activities.slice(-10).reverse();
 recent.forEach((act, idx) => {
-  const changes =
-    colors.green +
-    `+${act.insertions || 0}` +
-    colors.reset +
-    colors.red +
-    ` -${act.deletions || 0}` +
-    colors.reset;
+  const hours = estimateHours(act.insertions, act.deletions);
   log(
-    `${colors.dim}${idx + 1}.${colors.reset} ${colors.bright + act.date}${colors.reset} ${act.time} ${colors.bright}${act.author}${colors.reset}`,
+    chalk.gray(`  ${idx + 1}.`) +
+      chalk.hex(COLORS.secondary)(` ${act.date}`) +
+      chalk.gray(` ${act.time}`) +
+      chalk.bold.hex(COLORS.primary)(` ${act.author}`),
   );
-  log(`   ${colors.yellow}${act.message}${colors.reset}`);
+  log(chalk.white(`     ${act.message}`));
   log(
-    `   ${changes} ${colors.gray}${(act.files || []).length} arquivo(s)${colors.reset}`,
+    chalk.hex(COLORS.secondary)(`     + ${act.insertions || 0}`) +
+      chalk.red(` - ${act.deletions || 0}`) +
+      chalk.hex(COLORS.accent)(` (${hours.toFixed(2)}h)`) +
+      chalk.gray(` | ${(act.files || []).length} arquivo(s)`),
   );
   log();
 });
 
 log(
-  colors.cyan +
-    colors.bright +
-    "═══════════════════════════════════════════════════════════════════" +
-    colors.reset +
-    "\n",
+  chalk.bold.hex(COLORS.primary)(
+    "═══════════════════════════════════════════════════════════════════",
+  ),
 );
+log("\n");
