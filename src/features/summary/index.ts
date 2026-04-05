@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { type CICDConfig } from "../../features/ci-cd/index.js";
+import { type CICDConfig } from "../ci-cd/index.js";
 
 const COLORS = {
   primary: "#8e61c6",

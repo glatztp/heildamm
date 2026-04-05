@@ -8,23 +8,18 @@ import { copy, ensureDir } from "fs-extra";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
-import { checkForUpdates } from "../lib/features/update-checker.js";
-import {
-  initializeAnalytics,
-  setAnalyticsEnabled,
-  trackProjectCreation,
-} from "../lib/utils/analytics.js";
+import { checkForUpdates } from "../features/updates/index.js";
 import {
   promptLintingSetup,
   displayLintingInfo,
-} from "../lib/features/linting-formatting.js";
-import { calculateDependencyStats } from "../lib/features/dependency-management.js";
-import { displayProjectStructure } from "../lib/features/project-visualization.js";
+} from "../features/linting/index.js";
+import { calculateDependencyStats } from "../features/dependencies/index.js";
+import { displayProjectStructure } from "../features/visualization/index.js";
 import {
   displaySummaryScreen,
   displayResourceLinks,
-} from "../lib/features/summary-screen.js";
-import { generateReadme } from "../lib/features/readme-generator.js";
+} from "../features/summary/index.js";
+import { generateReadme } from "../features/readme/index.js";
 import {
   displayCICDInfo,
   saveCICDFiles,
@@ -32,6 +27,7 @@ import {
   type CICDConfig,
   type CICDPlatform,
 } from "../features/ci-cd/index.js";
+import { initializeAnalytics, setAnalyticsEnabled, trackProjectCreation } from "../utils/analytics.js";
 
 const COLORS = {
   primary: "#8e61c6",
