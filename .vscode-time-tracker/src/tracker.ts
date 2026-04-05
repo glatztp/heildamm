@@ -1,19 +1,24 @@
 import { TimeEntry } from "./storage";
 import { ContextService } from "./context";
-import { IDLE_THRESHOLD_MS, MIN_SESSION_DURATION } from "./constants";
+import { MIN_SESSION_DURATION } from "./constants";
 
 export class TimeTracker {
   private lastActivityTime: number = Date.now();
   private sessionStartTime: number = Date.now();
   private context: ContextService;
   private onEntryRecorded: (entry: TimeEntry) => void;
+  private idleThresholdMs: number = 5 * 60 * 1000; // default 5 minutes
 
   constructor(
     context: ContextService,
     onEntryRecorded: (entry: TimeEntry) => void,
+    idleThresholdMs?: number,
   ) {
     this.context = context;
     this.onEntryRecorded = onEntryRecorded;
+    if (idleThresholdMs) {
+      this.idleThresholdMs = idleThresholdMs;
+    }
   }
 
   recordActivity(): void {
@@ -22,7 +27,7 @@ export class TimeTracker {
     const now = Date.now();
     const timeSinceLastActivity = now - this.lastActivityTime;
 
-    if (timeSinceLastActivity > IDLE_THRESHOLD_MS) {
+    if (timeSinceLastActivity > this.idleThresholdMs) {
       this.sessionStartTime = now;
     } else {
       const duration = Math.round((now - this.sessionStartTime) / 1000);
@@ -34,6 +39,7 @@ export class TimeTracker {
           language: this.context.getLanguage(),
           project: this.context.getProject(),
           author: this.context.getAuthor(),
+          branch: this.context.getBranch(),
         };
 
         this.onEntryRecorded(entry);
@@ -56,5 +62,9 @@ export class TimeTracker {
 
   getSessionDuration(): number {
     return Math.round((Date.now() - this.sessionStartTime) / 1000);
+  }
+
+  setIdleThreshold(minutes: number): void {
+    this.idleThresholdMs = minutes * 60 * 1000;
   }
 }

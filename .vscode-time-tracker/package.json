@@ -4,12 +4,17 @@
   "description": "Rastreia tempo de atividade em tempo real sem limites",
   "version": "1.0.0",
   "publisher": "heildamm",
+  "icon": "public/favicon.ico",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/glatztp/heildamm.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
   "activationEvents": [
     "onStartupFinished"
-  ],
+  ],   
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -32,6 +37,22 @@
       {
         "command": "heildamm-time-tracker.clear-data",
         "title": "Clear All Data"
+      },
+      {
+        "command": "heildamm-time-tracker.export-csv",
+        "title": "Export Data to CSV"
+      },
+      {
+        "command": "heildamm-time-tracker.export-markdown",
+        "title": "Export Data to Markdown"
+      },
+      {
+        "command": "heildamm-time-tracker.toggle-statusbar",
+        "title": "Toggle Status Bar (Total/Project)"
+      },
+      {
+        "command": "heildamm-time-tracker.archaeology-report",
+        "title": "Generate Software Archaeology Report"
       }
     ],
     "configuration": {
@@ -40,7 +61,9 @@
         "heildamm-time-tracker.idleTime": {
           "type": "number",
           "default": 5,
-          "description": "Minutos de inatividade para contar como pausa"
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Minutos de inatividade antes de pausar o rastreamento automático"
         }
       }
     }

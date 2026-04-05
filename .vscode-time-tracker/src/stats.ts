@@ -11,6 +11,12 @@ export interface LanguageStats {
   duration: number;
 }
 
+export interface ProjectStats {
+  project: string;
+  duration: number;
+  fileCount: number;
+}
+
 export interface AuthorStats {
   author: string;
   totalDuration: number;
@@ -70,6 +76,44 @@ export class StatsService {
     });
 
     return Object.values(stats).sort((a, b) => b.duration - a.duration);
+  }
+
+  getProjectBreakdown(allData: DailyStats[]): ProjectStats[] {
+    const stats: { [key: string]: ProjectStats } = {};
+
+    allData.forEach((day) => {
+      day.entries.forEach((entry) => {
+        if (!stats[entry.project]) {
+          stats[entry.project] = {
+            project: entry.project,
+            duration: 0,
+            fileCount: 0,
+          };
+        }
+        stats[entry.project].duration += entry.duration;
+      });
+    });
+
+    Object.keys(stats).forEach((project) => {
+      const files = new Set<string>();
+      allData.forEach((day) => {
+        day.entries
+          .filter((e) => e.project === project)
+          .forEach((e) => {
+            files.add(e.file);
+          });
+      });
+      stats[project].fileCount = files.size;
+    });
+
+    return Object.values(stats).sort((a, b) => b.duration - a.duration);
+  }
+
+  getTodayProjectTime(todayData: DailyStats | null, project: string): number {
+    if (!todayData) return 0;
+    return todayData.entries
+      .filter((e) => e.project === project)
+      .reduce((sum, e) => sum + e.duration, 0);
   }
 
   getAuthorStats(allData: DailyStats[]): AuthorStats[] {

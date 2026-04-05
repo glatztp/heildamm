@@ -9,6 +9,7 @@ export interface TimeEntry {
   language: string;
   project: string;
   author: string;
+  branch: string;
 }
 
 export interface DailyStats {

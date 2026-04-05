@@ -7,10 +7,12 @@ export class ContextService {
   private currentLanguage: string = "";
   private currentProject: string = "";
   private author: string = "";
+  private currentBranch: string = "";
 
   constructor() {
     this.author = this.getAuthorName();
     this.currentProject = this.getProjectName();
+    this.currentBranch = this.getBranchName();
   }
 
   setActiveEditor(editor: vscode.TextEditor | undefined): void {
@@ -18,6 +20,7 @@ export class ContextService {
       this.currentFile = editor.document.uri.fsPath;
       this.currentLanguage = editor.document.languageId;
       this.currentProject = this.getProjectName();
+      this.currentBranch = this.getBranchName();
     }
   }
 
@@ -30,6 +33,17 @@ export class ContextService {
   private getAuthorName(): string {
     try {
       return execSync("git config user.name", { encoding: "utf-8" }).trim();
+    } catch {
+      return "unknown";
+    }
+  }
+
+  private getBranchName(): string {
+    try {
+      return execSync("git rev-parse --abbrev-ref HEAD", {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "ignore"],
+      }).trim();
     } catch {
       return "unknown";
     }
@@ -49,6 +63,10 @@ export class ContextService {
 
   getAuthor(): string {
     return this.author;
+  }
+
+  getBranch(): string {
+    return this.currentBranch;
   }
 
   isActive(): boolean {

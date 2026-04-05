@@ -1,0 +1,170 @@
+import { DailyStats, TimeEntry } from "./storage";
+
+export class ExporterService {
+  exportToCSV(
+    data: DailyStats[],
+    startDate?: string,
+    endDate?: string,
+  ): string {
+    const filtered = this.filterByDateRange(data, startDate, endDate);
+    const entries = filtered.flatMap((day) => day.entries);
+
+    if (entries.length === 0) {
+      return "No data found for the specified period";
+    }
+
+    const headers = [
+      "Date",
+      "Time",
+      "Duration (min)",
+      "File",
+      "Language",
+      "Project",
+      "Branch",
+      "Author",
+    ];
+    const rows = entries.map((entry) => {
+      const date = new Date(entry.timestamp).toISOString().split("T")[0];
+      const time = new Date(entry.timestamp).toISOString().split("T")[1];
+      const durationMin = Math.round(entry.duration / 60);
+      return [
+        date,
+        time,
+        durationMin,
+        entry.file,
+        entry.language,
+        entry.project,
+        entry.branch,
+        entry.author,
+      ];
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row
+          .map((cell) =>
+            typeof cell === "string" && cell.includes(",") ? `"${cell}"` : cell,
+          )
+          .join(","),
+      ),
+    ].join("\n");
+
+    return csvContent;
+  }
+
+  /**
+   * Export data to Markdown format
+   * @param data - Array of daily stats
+   * @param startDate - Start date filter (YYYY-MM-DD)
+   * @param endDate - End date filter (YYYY-MM-DD)
+   * @returns Markdown string
+   */
+  exportToMarkdown(
+    data: DailyStats[],
+    startDate?: string,
+    endDate?: string,
+  ): string {
+    const filtered = this.filterByDateRange(data, startDate, endDate);
+
+    if (filtered.length === 0) {
+      return "# No Data\n\nNo tracking data found for the specified period.";
+    }
+
+    let markdown = `# Time Tracking Report\n\n`;
+    markdown += `**Period:** ${startDate || "all time"} to ${endDate || "today"}\n\n`;
+
+    let totalSeconds = 0;
+    const projectStats: { [key: string]: number } = {};
+    const languageStats: { [key: string]: number } = {};
+
+    filtered.forEach((day) => {
+      markdown += `## ${day.date}\n\n`;
+      markdown += `| File | Language | Project | Branch | Duration | Author |\n`;
+      markdown += `|------|----------|---------|--------|----------|--------|\n`;
+
+      day.entries.forEach((entry) => {
+        totalSeconds += entry.duration;
+        projectStats[entry.project] =
+          (projectStats[entry.project] || 0) + entry.duration;
+        languageStats[entry.language] =
+          (languageStats[entry.language] || 0) + entry.duration;
+
+        const duration = this.formatDuration(entry.duration);
+        markdown += `| ${entry.file} | ${entry.language} | ${entry.project} | ${entry.branch} | ${duration} | ${entry.author} |\n`;
+      });
+
+      markdown += `\n`;
+    });
+
+    // Summary section
+    markdown += `## Summary\n\n`;
+    markdown += `**Total Time:** ${this.formatDuration(totalSeconds)}\n\n`;
+
+    markdown += `### By Project\n\n`;
+    Object.entries(projectStats)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([project, duration]) => {
+        markdown += `- ${project}: ${this.formatDuration(duration)}\n`;
+      });
+
+    markdown += `\n### By Language\n\n`;
+    Object.entries(languageStats)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([language, duration]) => {
+        markdown += `- ${language}: ${this.formatDuration(duration)}\n`;
+      });
+
+    return markdown;
+  }
+
+  /**
+   * Get data for the last N days
+   * @param data - Array of daily stats
+   * @param days - Number of days to include
+   * @returns Filtered array
+   */
+  getLastNDays(data: DailyStats[], days: number): DailyStats[] {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
+
+    return data.filter((day) => day.date >= cutoffDateStr);
+  }
+
+  /**
+   * Filter data by date range
+   * @param data - Array of daily stats
+   * @param startDate - Start date (YYYY-MM-DD)
+   * @param endDate - End date (YYYY-MM-DD)
+   * @returns Filtered array
+   */
+  private filterByDateRange(
+    data: DailyStats[],
+    startDate?: string,
+    endDate?: string,
+  ): DailyStats[] {
+    return data.filter((day) => {
+      if (startDate && day.date < startDate) return false;
+      if (endDate && day.date > endDate) return false;
+      return true;
+    });
+  }
+
+  /**
+   * Format duration from seconds to human-readable string
+   */
+  private formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    }
+    return `${secs}s`;
+  }
+}
