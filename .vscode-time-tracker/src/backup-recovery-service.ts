@@ -177,18 +177,47 @@ export class BackupRecoveryService {
   }
 
   ensureDataIntegrity(entry: TimeEntry): TimeEntry {
-    return {
-      timestamp: entry.timestamp || Date.now(),
-      duration: Math.max(0, entry.duration || 0),
-      file: entry.file && entry.file.length > 0 ? entry.file : "untitled",
-      language:
-        entry.language && entry.language.length > 0 ? entry.language : "text",
-      project:
-        entry.project && entry.project.length > 0 ? entry.project : "project",
-      author:
-        entry.author && entry.author.length > 0 ? entry.author : "developer",
-      branch: entry.branch && entry.branch.length > 0 ? entry.branch : "main",
+    const sanitizeString = (
+      value: string | undefined,
+      fallback: string,
+    ): string => {
+      if (!value || typeof value !== "string" || value.trim().length === 0) {
+        return fallback;
+      }
+      return value.trim();
     };
+
+    const sanitizeNumber = (
+      value: number | undefined,
+      fallback: number,
+    ): number => {
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        return fallback;
+      }
+      return value;
+    };
+
+    const cleanedEntry: TimeEntry = {
+      timestamp: sanitizeNumber(entry.timestamp, Date.now()),
+      duration: Math.max(0, sanitizeNumber(entry.duration, 0)),
+      file: sanitizeString(entry.file, "untitled"),
+      language: sanitizeString(entry.language, "text"),
+      project: sanitizeString(entry.project, "project"),
+      author: sanitizeString(entry.author, "developer"),
+      branch: sanitizeString(entry.branch, "main"),
+    };
+
+    if (cleanedEntry.timestamp <= 0) {
+      cleanedEntry.timestamp = Date.now();
+    }
+
+    if (cleanedEntry.file === "") cleanedEntry.file = "untitled";
+    if (cleanedEntry.language === "") cleanedEntry.language = "text";
+    if (cleanedEntry.project === "") cleanedEntry.project = "project";
+    if (cleanedEntry.author === "") cleanedEntry.author = "developer";
+    if (cleanedEntry.branch === "") cleanedEntry.branch = "main";
+
+    return cleanedEntry;
   }
 
   getBackupStats(): {
@@ -279,7 +308,9 @@ export class BackupRecoveryService {
     return (
       typeof obj.date === "string" &&
       Array.isArray(obj.entries) &&
-      obj.entries.every((entry: unknown) => this.isValidTimeEntry(entry))
+      (obj.entries as unknown[]).every((entry: unknown) =>
+        this.isValidTimeEntry(entry),
+      ) === true
     );
   }
 
@@ -288,22 +319,30 @@ export class BackupRecoveryService {
       return false;
     }
     const obj = entry as Record<string, unknown>;
-    return (
-      typeof obj.timestamp === "number" &&
-      obj.timestamp > 0 &&
-      typeof obj.duration === "number" &&
-      obj.duration >= 0 &&
-      typeof obj.file === "string" &&
-      obj.file.length > 0 &&
-      typeof obj.language === "string" &&
-      obj.language.length > 0 &&
-      typeof obj.project === "string" &&
-      obj.project.length > 0 &&
-      typeof obj.author === "string" &&
-      obj.author.length > 0 &&
-      typeof obj.branch === "string" &&
-      obj.branch.length > 0
-    );
+
+    if (typeof obj.timestamp !== "number" || obj.timestamp <= 0) {
+      return false;
+    }
+    if (typeof obj.duration !== "number" || obj.duration < 0) {
+      return false;
+    }
+    if (typeof obj.file !== "string" || obj.file.length === 0) {
+      return false;
+    }
+    if (typeof obj.language !== "string" || obj.language.length === 0) {
+      return false;
+    }
+    if (typeof obj.project !== "string" || obj.project.length === 0) {
+      return false;
+    }
+    if (typeof obj.author !== "string" || obj.author.length === 0) {
+      return false;
+    }
+    if (typeof obj.branch !== "string" || obj.branch.length === 0) {
+      return false;
+    }
+
+    return true;
   }
 
   private calculateChecksum(data: DailyStats): string {

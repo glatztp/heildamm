@@ -49,14 +49,16 @@ export class StatsService {
 
     allData.forEach((day) => {
       day.entries.forEach((entry) => {
-        if (!stats[entry.file]) {
-          stats[entry.file] = {
-            file: entry.file,
-            language: entry.language,
+        const file = entry.file || "unknown";
+        const language = entry.language || "unknown";
+        if (!stats[file]) {
+          stats[file] = {
+            file: file,
+            language: language,
             duration: 0,
           };
         }
-        stats[entry.file].duration += entry.duration;
+        stats[file].duration += entry.duration;
       });
     });
 
@@ -70,13 +72,14 @@ export class StatsService {
 
     allData.forEach((day) => {
       day.entries.forEach((entry) => {
-        if (!stats[entry.language]) {
-          stats[entry.language] = {
-            language: entry.language,
+        const language = entry.language || "unknown";
+        if (!stats[language]) {
+          stats[language] = {
+            language: language,
             duration: 0,
           };
         }
-        stats[entry.language].duration += entry.duration;
+        stats[language].duration += entry.duration;
       });
     });
 
@@ -88,13 +91,14 @@ export class StatsService {
 
     allData.forEach((day) => {
       day.entries.forEach((entry) => {
-        if (!stats[entry.branch]) {
-          stats[entry.branch] = {
-            branch: entry.branch,
+        const branch = entry.branch || "main";
+        if (!stats[branch]) {
+          stats[branch] = {
+            branch: branch,
             duration: 0,
           };
         }
-        stats[entry.branch].duration += entry.duration;
+        stats[branch].duration += entry.duration;
       });
     });
 
@@ -106,14 +110,15 @@ export class StatsService {
 
     allData.forEach((day) => {
       day.entries.forEach((entry) => {
-        if (!stats[entry.project]) {
-          stats[entry.project] = {
-            project: entry.project,
+        const project = entry.project || "unknown";
+        if (!stats[project]) {
+          stats[project] = {
+            project: project,
             duration: 0,
             fileCount: 0,
           };
         }
-        stats[entry.project].duration += entry.duration;
+        stats[project].duration += entry.duration;
       });
     });
 
@@ -121,7 +126,7 @@ export class StatsService {
       const files = new Set<string>();
       allData.forEach((day) => {
         day.entries
-          .filter((e) => e.project === project)
+          .filter((e) => (e.project || "unknown") === project)
           .forEach((e) => {
             files.add(e.file);
           });
@@ -144,15 +149,16 @@ export class StatsService {
 
     allData.forEach((day) => {
       day.entries.forEach((entry) => {
-        if (!stats[entry.author]) {
-          stats[entry.author] = {
-            author: entry.author,
+        const author = entry.author || "unknown";
+        if (!stats[author]) {
+          stats[author] = {
+            author: author,
             totalDuration: 0,
             fileCount: 0,
             languageBreakdown: [],
           };
         }
-        stats[entry.author].totalDuration += entry.duration;
+        stats[author].totalDuration += entry.duration;
       });
     });
 
@@ -160,7 +166,7 @@ export class StatsService {
       const files = new Set<string>();
       allData.forEach((day) => {
         day.entries
-          .filter((e) => e.author === author)
+          .filter((e) => (e.author || "unknown") === author)
           .forEach((e) => {
             files.add(e.file);
           });

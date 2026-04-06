@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
 import { StorageService, DailyStats } from "./storage";
 import { StatsService } from "./stats";
-import { TimeCommitAnalyzer } from "./time-commit-analyzer";
-import { getLocalDateString } from "./constants";
 
 interface DayStats {
   date: string;
@@ -17,16 +15,10 @@ export class WebviewPanel {
   private panel: vscode.WebviewPanel | undefined;
   private storage: StorageService;
   private stats: StatsService;
-  private commitAnalyzer: TimeCommitAnalyzer | undefined;
 
-  constructor(
-    storage: StorageService,
-    stats: StatsService,
-    commitAnalyzer?: TimeCommitAnalyzer,
-  ) {
+  constructor(storage: StorageService, stats: StatsService) {
     this.storage = storage;
     this.stats = stats;
-    this.commitAnalyzer = commitAnalyzer;
   }
 
   show(extensionUri: vscode.Uri): void {
@@ -92,10 +84,6 @@ export class WebviewPanel {
     const todayStats = this.stats.getTodayStats(todayData);
     const topFiles = this.stats.getTopFiles(allData, 30);
     const languages = this.stats.getLanguageBreakdown(allData);
-    const branches = this.stats.getBranchBreakdown(allData);
-    const dailyProductivity = this.commitAnalyzer
-      ? this.commitAnalyzer.getDailyProductivity(allData)
-      : [];
 
     const dayStats = this.getDayStats(allData);
     const totalDays = dayStats.length;
@@ -160,27 +148,6 @@ export class WebviewPanel {
       })),
     );
 
-    const branchesJson = JSON.stringify(
-      branches.map((b) => ({
-        branch: b.branch,
-        duration: b.duration,
-        label: this.stats.formatDuration(b.duration),
-      })),
-    );
-
-    const productivityScoreJson = JSON.stringify(
-      dailyProductivity
-        .slice()
-        .reverse()
-        .map((p) => ({
-          date: p.period,
-          avgTimePerCommit: +(p.avgTimePerCommit / 60).toFixed(1),
-          commits: p.commits,
-          trend: p.productivityTrend,
-          peakHour: p.peakHourOfDay,
-        })),
-    );
-
     const weekdayJson = JSON.stringify(
       ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((labelPt, i) => ({
         labelPt,
@@ -235,6 +202,8 @@ export class WebviewPanel {
   --bot-h:  26px;
 }
 .en { display: none; }
+body.lang-pt .pt { display: revert; }
+body.lang-pt .en { display: none; }
 body.lang-en .pt { display: none; }
 body.lang-en .en { display: revert; }
 
@@ -599,7 +568,6 @@ canvas { display: block; width: 100% !important; }
   <a class="nav-item" href="#activity" title="Atividade / Activity">▦</a>
   <div class="nav-divider"></div>
   <a class="nav-item" href="#breakdown" title="Breakdown">≡</a>
-  <a class="nav-item" href="#branches" title="Branches & Produtividade / Branches & Productivity">⎇</a>
   <a class="nav-item" href="#heatmap" title="Heatmap">⊞</a>
   <a class="nav-item" href="#monthly" title="Mensal / Monthly">◫</a>
 </nav>
@@ -750,41 +718,6 @@ canvas { display: block; width: 100% !important; }
     </div>
   </div>
 
-  <!-- BRANCHES & PRODUCTIVITY -->
-  <div id="branches" class="section">
-    <div class="section-label">
-      <span class="pt">branches &amp; produtividade</span><span class="en">branches &amp; productivity</span>
-    </div>
-    <div class="grid-2">
-
-      <div class="panel" style="max-height:460px">
-        <div class="panel-header">
-          <span class="panel-title pt">Branches</span>
-          <span class="panel-title en">Branches</span>
-          <span class="panel-meta" id="branch-count"></span>
-        </div>
-        <div class="panel-body" id="branch-list"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title pt">Score de Produtividade</span>
-          <span class="panel-title en">Productivity Score</span>
-          <span class="panel-meta" id="productivity-meta"></span>
-        </div>
-        <div class="chart-area" style="padding: 12px 12px 8px">
-          <canvas id="productivity-chart" height="180"></canvas>
-        </div>
-        <div class="chart-footer">
-          <span><span class="legend-pip" style="background:rgba(157,111,212,0.9)"></span><span class="pt">alto</span><span class="en">high</span></span>
-          <span><span class="legend-pip" style="background:rgba(157,111,212,0.5)"></span><span class="pt">médio</span><span class="en">medium</span></span>
-          <span><span class="legend-pip" style="background:rgba(157,111,212,0.25)"></span><span class="pt">baixo</span><span class="en">low</span></span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
   <!-- HEATMAP -->
   <div id="heatmap" class="section">
     <div class="section-label" style="justify-content:space-between;gap:12px">
@@ -884,8 +817,6 @@ canvas { display: block; width: 100% !important; }
 const RAW_DAYS   = ${chartDataJson};
 const TOP_FILES  = ${topFilesJson};
 const LANGUAGES  = ${languagesJson};
-const BRANCHES   = ${branchesJson};
-const PRODUCTIVITY_SCORE = ${productivityScoreJson};
 const WEEKDAYS   = ${weekdayJson};
 const MONTH_DATA = ${monthDataJson};
 const TOTAL_SECS = ${totalSeconds};
@@ -974,24 +905,6 @@ function hideTip() { tt.classList.remove('on'); }
     </div>\`;
   }).join('');
 })();
-
-// ── BRANCHES ────────────────────────────────────────
-(function () {
-  const tot = BRANCHES.reduce((s, b) => s + b.duration, 0);
-  document.getElementById('branch-count').textContent = BRANCHES.length;
-  document.getElementById('branch-list').innerHTML = BRANCHES.map(b => {
-    const pct = tot > 0 ? Math.round(b.duration / tot * 100) : 0;
-    return \`<div class="lang-row">
-      <div class="lang-top">
-        <span class="lang-name">\${b.branch}</span>
-        <span class="lang-pct">\${pct}<span class="lang-pct-unit">%</span></span>
-      </div>
-      <div class="bar-track"><div class="bar-fill" style="width:\${pct}%;background:var(--accent)"></div></div>
-      <div class="lang-time">\${b.label}</div>
-    </div>\`;
-  }).join('');
-})();
-
 
 // ── WEEKDAY ────────────────────────────────────────
 function renderWeekdays() {
@@ -1118,7 +1031,7 @@ function updateCalMeta() {
     }
 
     for (let i = 0; i < 7; i++) {
-      const ds = getLocalDateString(d);
+      const ds = d.toISOString().split('T')[0];
       const h  = dayMap[ds] || 0;
       const cell = document.createElement('div');
       cell.className = 'cal-cell ' + lvl(h);
@@ -1283,116 +1196,6 @@ if (RAW_DAYS.length) {
 
 drawChart(RAW_DAYS);
 window.addEventListener('resize', () => drawChart(activeData));
-
-// ── PRODUCTIVITY SCORE CHART ───────────────────────
-const prodCanvas = document.getElementById('productivity-chart');
-const prodCtx = prodCanvas.getContext('2d');
-
-function drawProductivityChart(data) {
-  const metaEl = document.getElementById('productivity-meta');
-  if (!data || !data.length) {
-    prodCtx.clearRect(0, 0, prodCanvas.width, prodCanvas.height);
-    metaEl.textContent = ''; return;
-  }
-
-  metaEl.textContent = data.length + ' ' + (LANG === 'pt' ? 'dias' : 'days');
-
-  const dpr = window.devicePixelRatio || 1;
-  const W = prodCanvas.parentElement.clientWidth - 24;
-  const H = 180;
-  prodCanvas.style.width = W + 'px';
-  prodCanvas.style.height = H + 'px';
-  prodCanvas.width = W * dpr;
-  prodCanvas.height = H * dpr;
-  prodCtx.scale(dpr, dpr);
-  prodCtx.clearRect(0, 0, W, H);
-
-  const pL = 42, pR = 14, pT = 14, pB = 32;
-  const cW = W - pL - pR, cH = H - pT - pB;
-  const maxScore = Math.max(...data.map(d => d.avgTimePerCommit), 60);
-
-  // Horizontal grid
-  const gridLines = 3;
-  for (let i = 0; i <= gridLines; i++) {
-    const y = pT + (cH / gridLines) * i;
-    const val = maxScore - (maxScore / gridLines) * i;
-
-    prodCtx.strokeStyle = 'rgba(157,111,212,0.08)';
-    prodCtx.lineWidth = 1;
-    prodCtx.setLineDash([]);
-    prodCtx.beginPath();
-    prodCtx.moveTo(pL, y);
-    prodCtx.lineTo(pL + cW, y);
-    prodCtx.stroke();
-
-    prodCtx.fillStyle = 'rgba(157,111,212,0.4)';
-    prodCtx.font = "9px 'IBM Plex Mono',monospace";
-    prodCtx.textAlign = 'right';
-    prodCtx.fillText(Math.round(val) + 'm', pL - 5, y + 3);
-  }
-
-  // Bars with color by trend
-  const gap = cW / data.length;
-  const barW = Math.max(Math.min(gap * .7, 20), 1.5);
-
-  data.forEach((d, i) => {
-    const x = pL + gap * i + gap / 2 - barW / 2;
-    const bh = (d.avgTimePerCommit / maxScore) * cH;
-    const y = pT + cH - bh;
-    
-    // Color by trend
-    let color;
-    if (d.trend === 'high') {
-      color = 'rgba(157,111,212,0.9)';
-    } else if (d.trend === 'medium') {
-      color = 'rgba(157,111,212,0.5)';
-    } else {
-      color = 'rgba(157,111,212,0.25)';
-    }
-
-    prodCtx.fillStyle = color;
-    prodCtx.beginPath();
-    if (prodCtx.roundRect) prodCtx.roundRect(x, y, barW, bh, [2, 2, 0, 0]);
-    else prodCtx.rect(x, y, barW, bh);
-    prodCtx.fill();
-  });
-
-  // X labels
-  prodCtx.fillStyle = 'rgba(157,111,212,0.45)';
-  prodCtx.font = "9px 'IBM Plex Mono',monospace";
-  prodCtx.textAlign = 'center';
-  const maxLabels = Math.floor(cW / 44);
-  const step = Math.max(1, Math.floor(data.length / maxLabels));
-  data.forEach((d, i) => {
-    if (i % step !== 0 && i !== data.length - 1) return;
-    prodCtx.fillText(d.date.slice(5), pL + gap * i + gap / 2, pT + cH + 16);
-  });
-
-  prodCanvas._data = data;
-  prodCanvas._pL = pL;
-  prodCanvas._gap = gap;
-  prodCanvas._pT = pT;
-  prodCanvas._cH = cH;
-  prodCanvas._maxScore = maxScore;
-}
-
-prodCanvas.addEventListener('mousemove', e => {
-  if (!prodCanvas._data) return;
-  const r = prodCanvas.getBoundingClientRect();
-  const idx = Math.floor((e.clientX - r.left - prodCanvas._pL) / prodCanvas._gap);
-  if (idx < 0 || idx >= prodCanvas._data.length) { hideTip(); return; }
-  const d = prodCanvas._data[idx];
-  const trendLbl = LANG === 'pt' ? { high: 'Alto', medium: 'Médio', low: 'Baixo' } : { high: 'High', medium: 'Medium', low: 'Low' };
-  showTip(e, \`<div class="tooltip-date">\${d.date}</div><div class="tooltip-row">\${LANG==='pt'?'tempo/commit':'time/commit'} <span>\${Math.round(d.avgTimePerCommit)}m</span></div><div class="tooltip-row">\${LANG==='pt'?'commits':'commits'} <span>\${d.commits}</span></div><div class="tooltip-row">\${LANG==='pt'?'tendência':'trend'} <span>\${trendLbl[d.trend] || d.trend}</span></div>\`);
-});
-prodCanvas.addEventListener('mouseleave', hideTip);
-
-if (PRODUCTIVITY_SCORE.length) {
-  drawProductivityChart(PRODUCTIVITY_SCORE);
-}
-window.addEventListener('resize', () => {
-  if (PRODUCTIVITY_SCORE.length) drawProductivityChart(PRODUCTIVITY_SCORE);
-});
 </script>
 </body>
 </html>`;
@@ -1431,7 +1234,7 @@ window.addEventListener('resize', () => {
     for (let i = 0; i < 3650; i++) {
       const check = new Date(today);
       check.setDate(check.getDate() - i);
-      const str = getLocalDateString(check);
+      const str = check.toISOString().split("T")[0];
       if (dayStats.find((d) => d.date === str)) {
         streak++;
       } else if (i > 0) {
