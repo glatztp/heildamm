@@ -70,7 +70,7 @@ const VARIANTS = ["bare", "trpc", "prisma", "full"] as const;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASCII_ART = fs.readFileSync(
   new URL("./ascii.txt", import.meta.url),
-  "utf8"
+  "utf8",
 );
 
 function clearTerminal(): void {
@@ -86,7 +86,7 @@ async function drawProgressBar(width = 40, delay = 15): Promise<void> {
     const progress = "█".repeat(i) + "░".repeat(width - i);
     const percent = Math.round((i / width) * 100);
     process.stdout.write(
-      `\r   ${chalk.hex(COLORS.primary)(progress)} ${percent}%`
+      `\r   ${chalk.hex(COLORS.primary)(progress)} ${percent}%`,
     );
     await sleep(delay);
   }
@@ -139,12 +139,12 @@ function logError(message: string): void {
 
 async function installDependencies(
   targetPath: string,
-  packageManager: string
+  packageManager: string,
 ): Promise<void> {
   console.log(
     chalk.hex(COLORS.primary)(
-      `\n   ↓ Installing dependencies with ${packageManager}...\n`
-    )
+      `\n   ↓ Installing dependencies with ${packageManager}...\n`,
+    ),
   );
 
   try {
@@ -156,8 +156,8 @@ async function installDependencies(
   } catch {
     console.log(
       chalk.hex(COLORS.primary)(
-        `\n   ⚠ Installation encountered issues. Continue anyway.\n`
-      )
+        `\n   ⚠ Installation encountered issues. Continue anyway.\n`,
+      ),
     );
   }
 }
@@ -165,13 +165,18 @@ async function installDependencies(
 async function promptText(
   message: string,
   placeholder?: string,
-  validate?: (value: string) => string | void
+  validate?: (value: string) => string | void,
 ): Promise<string> {
   try {
     return (await text({
       message,
       placeholder,
-      validate,
+      validate: validate
+        ? (value: string | undefined) => {
+            if (value === undefined) return "This field is required";
+            return validate(value) || undefined;
+          }
+        : undefined,
     })) as string;
   } catch {
     logCancelled();
@@ -181,7 +186,7 @@ async function promptText(
 
 async function promptSelect(
   message: string,
-  options: Array<{ value: string; label: string }>
+  options: Array<{ value: string; label: string }>,
 ): Promise<string> {
   try {
     return (await select({
@@ -206,17 +211,17 @@ function renderWelcome(): void {
   clearTerminal();
   console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
   console.log(
-    `\n   ${chalk.hex(COLORS.primary).bold("Welcome to Heildamm")}\n`
+    `\n   ${chalk.hex(COLORS.primary).bold("Welcome to Heildamm")}\n`,
   );
   console.log(
     chalk.hex(COLORS.secondary)(
-      `   Scaffold Next.js projects with opinionated architectures\n`
-    )
+      `   Scaffold Next.js projects with opinionated architectures\n`,
+    ),
   );
   console.log(
     chalk.hex(COLORS.accent)(
-      `   Docs: https://github.com/glatztp/create-heildamm\n`
-    )
+      `   Docs: https://github.com/glatztp/create-heildamm\n`,
+    ),
   );
 }
 
@@ -235,17 +240,17 @@ async function createProject(): Promise<void> {
       if (!value) return "Project name is required";
       if (!/^[a-zA-Z0-9-_]+$/.test(value))
         return "Only letters, numbers, hyphens and underscores are allowed";
-    }
+    },
   );
 
   const architecture = await promptSelect(
     USER_PROMPTS.architecture,
-    ARCHITECTURES.map((arch) => ({ value: arch, label: arch }))
+    ARCHITECTURES.map((arch) => ({ value: arch, label: arch })),
   );
 
   const variant = await promptSelect(
     USER_PROMPTS.variant,
-    VARIANTS.map((v) => ({ value: v, label: v }))
+    VARIANTS.map((v) => ({ value: v, label: v })),
   );
 
   displayProjectStructure(architecture, variant);
@@ -275,7 +280,7 @@ async function createProject(): Promise<void> {
   if (withCICD) {
     const cicdPlatform = (await promptSelect(
       USER_PROMPTS.cicdPlatform,
-      getCICDPromptOptions()
+      getCICDPromptOptions(),
     )) as CICDPlatform;
 
     cicdConfig = {
@@ -288,7 +293,7 @@ async function createProject(): Promise<void> {
   }
 
   const enableAnalytics = await promptConfirm(
-    "\n Enable anonymous analytics to help improve Heildamm?"
+    "\n Enable anonymous analytics to help improve Heildamm?",
   );
   if (enableAnalytics) {
     setAnalyticsEnabled(true);
@@ -304,7 +309,7 @@ async function createProject(): Promise<void> {
 
   const locationName = chalk.hex(COLORS.accent)(locationDisplay);
   const confirmed = await promptConfirm(
-    `${USER_PROMPTS.confirmCreation} ${chalk.hex(COLORS.accent)(projectName)} in ${locationName}?`
+    `${USER_PROMPTS.confirmCreation} ${chalk.hex(COLORS.accent)(projectName)} in ${locationName}?`,
   );
 
   if (!confirmed) {
@@ -325,7 +330,7 @@ async function createProject(): Promise<void> {
       "..",
       "templates",
       architecture,
-      variant
+      variant,
     );
 
     const targetPath = createInSubfolder
@@ -343,7 +348,7 @@ async function createProject(): Promise<void> {
       architecture,
       variant,
       packageManager,
-      lintingConfig.eslint
+      lintingConfig.eslint,
     );
     fs.writeFileSync(resolve(targetPath, "README.md"), readmeContent);
 
@@ -357,14 +362,14 @@ async function createProject(): Promise<void> {
       architecture,
       variant,
       packageManager,
-      cicdConfig
+      cicdConfig,
     );
 
     clearTerminal();
     console.log(gradient(COLORS.primary, COLORS.accent).multiline(ASCII_ART));
 
     const dependencyStats = calculateDependencyStats(
-      resolve(targetPath, "package.json")
+      resolve(targetPath, "package.json"),
     );
 
     displaySummaryScreen({
@@ -413,7 +418,7 @@ async function run(): Promise<void> {
 
 run().catch((error) => {
   logError(
-    error instanceof Error ? error.message : "An unknown error occurred"
+    error instanceof Error ? error.message : "An unknown error occurred",
   );
   process.exit(1);
 });
