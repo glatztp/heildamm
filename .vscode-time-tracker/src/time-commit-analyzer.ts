@@ -38,11 +38,256 @@ export interface SoftwareArchaeology {
   costPerCommit: number;
 }
 
+export interface EstimatedDayStats {
+  date: string;
+  estimatedSeconds: number;
+  commits: number;
+  changes: number;
+  isEstimated: true;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface HistoricalEstimate {
+  days: EstimatedDayStats[];
+  totalEstimatedSeconds: number;
+  calibratedSecondsPerLine: number;
+  dataSource: "calibrated" | "default";
+  firstCommitDate: string;
+  lastCommitDate: string;
+  totalCommitsAnalyzed: number;
+}
+
 export class TimeCommitAnalyzer {
   private gitAnalyzer: GitAnalyzer;
 
+  private static readonly DEFAULT_SECONDS_PER_LINE = 120;
+  private static readonly MAX_SESSION_SECONDS = 8 * 3600;
+  private static readonly OFFHOURS_START = 22;
+  private static readonly OFFHOURS_END = 6;
+
   constructor(projectPath: string) {
     this.gitAnalyzer = new GitAnalyzer(projectPath);
+  }
+
+  private calibrateFromRealData(allData: DailyStats[]): {
+    secondsPerLine: number;
+    confidence: number;
+  } {
+    if (allData.length === 0) {
+      return {
+        secondsPerLine: TimeCommitAnalyzer.DEFAULT_SECONDS_PER_LINE,
+        confidence: 0,
+      };
+    }
+
+    const allEntries = allData.flatMap((d) => d.entries);
+    if (allEntries.length === 0) {
+      return {
+        secondsPerLine: TimeCommitAnalyzer.DEFAULT_SECONDS_PER_LINE,
+        confidence: 0,
+      };
+    }
+
+    const trackerStart = Math.min(...allEntries.map((e) => e.timestamp));
+    const trackerEnd = Math.max(...allEntries.map((e) => e.timestamp));
+    const trackerDays = Math.max(
+      1,
+      (trackerEnd - trackerStart) / (1000 * 60 * 60 * 24),
+    );
+
+    const realCommits = this.gitAnalyzer.getCommitsInRange(
+      new Date(trackerStart),
+      new Date(trackerEnd),
+    );
+
+    if (realCommits.length === 0) {
+      return {
+        secondsPerLine: TimeCommitAnalyzer.DEFAULT_SECONDS_PER_LINE,
+        confidence: 0,
+      };
+    }
+
+    let totalLines = 0;
+    let totalSeconds = 0;
+
+    for (const commit of realCommits) {
+      const stats = this.gitAnalyzer.getCommitStats(commit.hash);
+      totalLines += stats.insertions + stats.deletions;
+    }
+
+    totalSeconds = allEntries.reduce((s, e) => s + e.duration, 0);
+
+    if (totalLines === 0) {
+      return {
+        secondsPerLine: TimeCommitAnalyzer.DEFAULT_SECONDS_PER_LINE,
+        confidence: 0,
+      };
+    }
+
+    const calibrated = totalSeconds / totalLines;
+
+    const confidence = Math.min(1, trackerDays / 30);
+
+    const blended =
+      calibrated * confidence +
+      TimeCommitAnalyzer.DEFAULT_SECONDS_PER_LINE * (1 - confidence);
+
+    const clamped = Math.max(30, Math.min(600, blended));
+
+    return { secondsPerLine: clamped, confidence };
+  }
+
+  private effectiveWorkingSeconds(fromMs: number, toMs: number): number {
+    const totalSeconds = (toMs - fromMs) / 1000;
+
+    if (totalSeconds < 600) return totalSeconds;
+
+    let workingSeconds = 0;
+    const step = 3600;
+    let cursor = fromMs;
+
+    while (cursor < toMs) {
+      const hour = new Date(cursor).getHours();
+      const isWorkingHour =
+        hour >= TimeCommitAnalyzer.OFFHOURS_END &&
+        hour < TimeCommitAnalyzer.OFFHOURS_START;
+
+      const sliceEnd = Math.min(cursor + step * 1000, toMs);
+      const sliceSecs = (sliceEnd - cursor) / 1000;
+
+      if (isWorkingHour) {
+        workingSeconds += sliceSecs;
+      }
+
+      cursor += step * 1000;
+    }
+
+    return Math.min(workingSeconds, TimeCommitAnalyzer.MAX_SESSION_SECONDS);
+  }
+
+  estimateHistoricalTime(
+    allData: DailyStats[],
+    limitDays: number = 0,
+  ): HistoricalEstimate {
+    const { secondsPerLine, confidence } = this.calibrateFromRealData(allData);
+    const dataSource: "calibrated" | "default" =
+      confidence > 0.2 ? "calibrated" : "default";
+
+    const trackedDates = new Set(allData.map((d) => d.date));
+
+    const allHistory = this.gitAnalyzer.getCommitHistory(
+      limitDays > 0 ? limitDays : 36500,
+    );
+
+    if (allHistory.commits.length === 0) {
+      return {
+        days: [],
+        totalEstimatedSeconds: 0,
+        calibratedSecondsPerLine: secondsPerLine,
+        dataSource,
+        firstCommitDate: "—",
+        lastCommitDate: "—",
+        totalCommitsAnalyzed: 0,
+      };
+    }
+
+    const commits = [...allHistory.commits].sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+
+    const dayMap: Record<
+      string,
+      { estimatedSeconds: number; commits: number; changes: number }
+    > = {};
+
+    for (let i = 0; i < commits.length; i++) {
+      const commit = commits[i];
+      const dateStr = commit.dateStr;
+
+      if (trackedDates.has(dateStr)) continue;
+
+      const stats = this.gitAnalyzer.getCommitStats(commit.hash);
+      const changes = stats.insertions + stats.deletions;
+      const filesChanged = Math.max(stats.filesChanged, 1);
+
+      const estimatedByChanges =
+        changes > 0
+          ? changes * secondsPerLine
+          : filesChanged * secondsPerLine * 10;
+
+      // teto pelo tempo real disponível entre commits
+      const prevCommit = commits[i - 1];
+      const windowStart = prevCommit
+        ? prevCommit.timestamp
+        : commit.timestamp - 4 * 3600 * 1000; // assume 4h antes se for o primeiro
+
+      const effectiveCap = this.effectiveWorkingSeconds(
+        windowStart,
+        commit.timestamp,
+      );
+
+      const estimated = Math.min(estimatedByChanges, effectiveCap);
+
+      if (!dayMap[dateStr]) {
+        dayMap[dateStr] = { estimatedSeconds: 0, commits: 0, changes: 0 };
+      }
+      dayMap[dateStr].estimatedSeconds += estimated;
+      dayMap[dateStr].commits += 1;
+      dayMap[dateStr].changes += changes;
+    }
+
+    const days: EstimatedDayStats[] = Object.entries(dayMap)
+      .map(([date, d]) => {
+        const dayConfidence: "high" | "medium" | "low" =
+          d.changes > 100 ? "high" : d.changes > 20 ? "medium" : "low";
+
+        return {
+          date,
+          estimatedSeconds: Math.round(d.estimatedSeconds),
+          commits: d.commits,
+          changes: d.changes,
+          isEstimated: true as const,
+          confidence: dayConfidence,
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const totalEstimatedSeconds = days.reduce(
+      (s, d) => s + d.estimatedSeconds,
+      0,
+    );
+
+    const sortedCommits = commits;
+    const firstCommitDate = sortedCommits[0]?.dateStr ?? "—";
+    const lastCommitDate =
+      sortedCommits[sortedCommits.length - 1]?.dateStr ?? "—";
+
+    return {
+      days,
+      totalEstimatedSeconds,
+      calibratedSecondsPerLine: Math.round(secondsPerLine),
+      dataSource,
+      firstCommitDate,
+      lastCommitDate,
+      totalCommitsAnalyzed: commits.length,
+    };
+  }
+
+  toSyntheticDailyStats(estimate: HistoricalEstimate): DailyStats[] {
+    return estimate.days.map((d) => ({
+      date: d.date,
+      entries: [
+        {
+          timestamp: new Date(d.date + "T12:00:00").getTime(),
+          duration: d.estimatedSeconds,
+          file: "__estimated__",
+          language: "__estimated__",
+          project: "__estimated__",
+          author: "__estimated__",
+          branch: "__estimated__",
+        },
+      ],
+    }));
   }
 
   analyzeTimeToCommit(

@@ -84,6 +84,8 @@ export class WebviewPanel {
     const todayStats = this.stats.getTodayStats(todayData);
     const topFiles = this.stats.getTopFiles(allData, 30);
     const languages = this.stats.getLanguageBreakdown(allData);
+    const projects = this.stats.getProjectBreakdown(allData);
+    const branches = this.stats.getBranchBreakdown(allData);
 
     const dayStats = this.getDayStats(allData);
     const totalDays = dayStats.length;
@@ -145,6 +147,23 @@ export class WebviewPanel {
         language: l.language,
         duration: l.duration,
         label: this.stats.formatDuration(l.duration),
+      })),
+    );
+
+    const projectsJson = JSON.stringify(
+      projects.map((p) => ({
+        project: p.project,
+        duration: p.duration,
+        fileCount: p.fileCount,
+        label: this.stats.formatDuration(p.duration),
+      })),
+    );
+
+    const branchesJson = JSON.stringify(
+      branches.map((b) => ({
+        branch: b.branch,
+        duration: b.duration,
+        label: this.stats.formatDuration(b.duration),
       })),
     );
 
@@ -567,6 +586,7 @@ canvas { display: block; width: 100% !important; }
   <a class="nav-item active" href="#overview" title="Overview">◈</a>
   <a class="nav-item" href="#activity" title="Atividade / Activity">▦</a>
   <div class="nav-divider"></div>
+  <a class="nav-item" href="#projects" title="Projetos / Projects">◧</a>
   <a class="nav-item" href="#breakdown" title="Breakdown">≡</a>
   <a class="nav-item" href="#heatmap" title="Heatmap">⊞</a>
   <a class="nav-item" href="#monthly" title="Mensal / Monthly">◫</a>
@@ -636,9 +656,9 @@ canvas { display: block; width: 100% !important; }
       <div class="kpi">
         <span class="kpi-label pt">Linguagens</span>
         <span class="kpi-label en">Languages</span>
-        <div class="kpi-value">${languages.length}</div>
-        <div class="kpi-sub pt">detectadas</div>
-        <div class="kpi-sub en">detected</div>
+        <div class="kpi-value" style="font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${languages.map((l) => l.language).join(", ")}</div>
+        <div class="kpi-sub pt">${languages.length} detectadas</div>
+        <div class="kpi-sub en">${languages.length} detected</div>
       </div>
 
     </div>
@@ -675,6 +695,34 @@ canvas { display: block; width: 100% !important; }
         <span style="opacity:.45">— <span class="pt">média</span><span class="en">avg</span></span>
         <span style="margin-left:auto" id="chart-summary"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- PROJECTS & BRANCHES -->
+  <div id="projects" class="section">
+    <div class="section-label">
+      <span class="pt">projetos &amp; branches</span><span class="en">projects &amp; branches</span>
+    </div>
+    <div class="grid-2">
+
+      <div class="panel" style="max-height:420px">
+        <div class="panel-header">
+          <span class="panel-title pt">Por Projeto</span>
+          <span class="panel-title en">By Project</span>
+          <span class="panel-meta" id="proj-count"></span>
+        </div>
+        <div class="panel-body" id="proj-list"></div>
+      </div>
+
+      <div class="panel" style="max-height:420px">
+        <div class="panel-header">
+          <span class="panel-title pt">Por Branch</span>
+          <span class="panel-title en">By Branch</span>
+          <span class="panel-meta" id="branch-count"></span>
+        </div>
+        <div class="panel-body" id="branch-list"></div>
+      </div>
+
     </div>
   </div>
 
@@ -806,6 +854,7 @@ canvas { display: block; width: 100% !important; }
     <span class="status-dot"></span>
     ${totalDays} <span class="pt">dias</span><span class="en">days</span> ·
     ${totalEntries} <span class="pt">sessões</span><span class="en">sessions</span> ·
+    ${projects.length} <span class="pt">projetos</span><span class="en">projects</span> ·
     ${languages.length} <span class="pt">linguagens</span><span class="en">languages</span>
   </span>
   <span id="footer-clock"></span>
@@ -817,6 +866,8 @@ canvas { display: block; width: 100% !important; }
 const RAW_DAYS   = ${chartDataJson};
 const TOP_FILES  = ${topFilesJson};
 const LANGUAGES  = ${languagesJson};
+const PROJECTS   = ${projectsJson};
+const BRANCHES   = ${branchesJson};
 const WEEKDAYS   = ${weekdayJson};
 const MONTH_DATA = ${monthDataJson};
 const TOTAL_SECS = ${totalSeconds};
@@ -863,6 +914,54 @@ function showTip(e, html) {
   tt.classList.add('on');
 }
 function hideTip() { tt.classList.remove('on'); }
+
+// ── PROJECTS ───────────────────────────────────────
+(function () {
+  const maxD = Math.max(...PROJECTS.map(p => p.duration), 1);
+  document.getElementById('proj-count').textContent = PROJECTS.length;
+  document.getElementById('proj-list').innerHTML = PROJECTS.map((p, i) => {
+    const pct = TOTAL_SECS > 0 ? Math.round(p.duration / TOTAL_SECS * 100) : 0;
+    const bar = Math.round(p.duration / maxD * 100);
+    const name = p.project.split(/[\\\\/]/).pop() || p.project;
+    return \`<div class="file-row" title="\${p.project}">
+      <span class="file-rank">\${i + 1}</span>
+      <div class="file-info">
+        <div class="file-name">\${name}</div>
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill" style="width:\${bar}%"></div></div>
+          <span class="bar-pct">\${pct}%</span>
+        </div>
+      </div>
+      <div class="file-right">
+        <div class="file-time">\${p.label}</div>
+        <div class="lang-tag">\${p.fileCount} <span class="pt">arq</span><span class="en">files</span></div>
+      </div>
+    </div>\`;
+  }).join('');
+})();
+
+// ── BRANCHES ───────────────────────────────────────
+(function () {
+  const maxD = Math.max(...BRANCHES.map(b => b.duration), 1);
+  document.getElementById('branch-count').textContent = BRANCHES.length;
+  document.getElementById('branch-list').innerHTML = BRANCHES.map((b, i) => {
+    const pct = TOTAL_SECS > 0 ? Math.round(b.duration / TOTAL_SECS * 100) : 0;
+    const bar = Math.round(b.duration / maxD * 100);
+    return \`<div class="file-row" title="\${b.branch}">
+      <span class="file-rank">\${i + 1}</span>
+      <div class="file-info">
+        <div class="file-name">\${b.branch}</div>
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill" style="width:\${bar}%;background:var(--accent)"></div></div>
+          <span class="bar-pct">\${pct}%</span>
+        </div>
+      </div>
+      <div class="file-right">
+        <div class="file-time">\${b.label}</div>
+      </div>
+    </div>\`;
+  }).join('');
+})();
 
 // ── FILES ──────────────────────────────────────────
 (function () {
