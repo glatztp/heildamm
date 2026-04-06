@@ -11,6 +11,11 @@ export interface LanguageStats {
   duration: number;
 }
 
+export interface BranchStats {
+  branch: string;
+  duration: number;
+}
+
 export interface ProjectStats {
   project: string;
   duration: number;
@@ -72,6 +77,24 @@ export class StatsService {
           };
         }
         stats[entry.language].duration += entry.duration;
+      });
+    });
+
+    return Object.values(stats).sort((a, b) => b.duration - a.duration);
+  }
+
+  getBranchBreakdown(allData: DailyStats[]): BranchStats[] {
+    const stats: { [key: string]: BranchStats } = {};
+
+    allData.forEach((day) => {
+      day.entries.forEach((entry) => {
+        if (!stats[entry.branch]) {
+          stats[entry.branch] = {
+            branch: entry.branch,
+            duration: 0,
+          };
+        }
+        stats[entry.branch].duration += entry.duration;
       });
     });
 

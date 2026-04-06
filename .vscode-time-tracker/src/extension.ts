@@ -176,23 +176,22 @@ function registerCommands(extensionContext: vscode.ExtensionContext): void {
       const opportunities =
         commitAnalyzer.getOptimizationOpportunities(allData);
 
-      // Generate report as markdown
       let report = `# Software Archaeology Report\n\n`;
       report += `**Analysis Period:** ${analysis.period}\n\n`;
 
-      report += `## 📊 Summary\n\n`;
+      report += `## Summary\n\n`;
       report += `- **Total Time Invested:** ${Math.round(analysis.totalTimeInvested / 3600)}h ${Math.round((analysis.totalTimeInvested % 3600) / 60)}m\n`;
       report += `- **Total Commits:** ${analysis.totalCommits}\n`;
       report += `- **Average Time per Commit:** ${Math.round(analysis.averageTimePerCommit / 60)}m\n`;
       report += `- **Commit Velocity:** ${analysis.commitVelocity.toFixed(1)} commits/day\n`;
       report += `- **Cost per Commit:** ${Math.round(analysis.costPerCommit / 60)}m\n\n`;
 
-      report += `## 🏆 Productivity Insights\n\n`;
+      report += `## Productivity Insights\n\n`;
       report += `- **Most Productive Day:** ${analysis.mostProductiveDay}\n`;
       report += `- **Least Productive Day:** ${analysis.leastProductiveDay}\n\n`;
 
       if (opportunities.length > 0) {
-        report += `## ⚠️ Optimization Opportunities\n\n`;
+        report += `## Optimization Opportunities\n\n`;
         report += `Commits that took significantly longer than average (${Math.round(analysis.averageTimePerCommit / 60)}m):\n\n`;
         opportunities.slice(0, 5).forEach((m) => {
           const timeInvested = Math.round(m.timeInvestedBeforeCommit / 60);
@@ -202,7 +201,7 @@ function registerCommands(extensionContext: vscode.ExtensionContext): void {
         report += `\n`;
       }
 
-      report += `## 📝 Recent Commits\n\n`;
+      report += `## Recent Commits\n\n`;
       analysis.metrics.slice(0, 10).forEach((m) => {
         const time = Math.round(m.timeInvestedBeforeCommit / 60);
         report += `- **${m.commitHash}:** ${m.message}\n`;
@@ -240,13 +239,13 @@ function updateStatusBar(): void {
 
   let text = "";
   if (statusBarMode === "total") {
-    text = `⏱ ${todayStats.hours}h ${todayStats.minutes}m`;
+    text = `${todayStats.hours}h ${todayStats.minutes}m`;
   } else {
     const currentProject = context.getProject();
     const projectTime = stats.getTodayProjectTime(todayData, currentProject);
     const hours = Math.floor(projectTime / 3600);
     const minutes = Math.floor((projectTime % 3600) / 60);
-    text = `◇ ${currentProject}: ${hours}h ${minutes}m`;
+    text = `${currentProject}: ${hours}h ${minutes}m`;
   }
 
   statusBar.text = text;
@@ -258,14 +257,13 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   context = new ContextService();
   stats = new StatsService();
   exporter = new ExporterService();
-  webviewPanel = new WebviewPanel(storage, stats);
 
-  // Initialize commit analyzer with current workspace
   const workspacePath =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   commitAnalyzer = new TimeCommitAnalyzer(workspacePath);
 
-  // Get idle time from configuration
+  webviewPanel = new WebviewPanel(storage, stats, commitAnalyzer);
+
   const idleTimeMinutes =
     vscode.workspace
       .getConfiguration("heildamm-time-tracker")
@@ -286,7 +284,6 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
 
   console.log(`Status: ${StatusMessages.ACTIVATED}: ${context.getAuthor()}`);
 
-  // Listen for configuration changes
   extensionContext.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("heildamm-time-tracker.idleTime")) {

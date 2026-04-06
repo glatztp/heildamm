@@ -1,26 +1,27 @@
 import { DailyStats, TimeEntry } from "./storage";
 import { GitAnalyzer, GitCommit } from "./git-analyzer";
+import { getLocalDateString } from "./constants";
 
 export interface TimeToCommitMetrics {
   commitHash: string;
   message: string;
   timestamp: number;
-  timeSincePrevCommit: number; // seconds
-  timeInvestedBeforeCommit: number; // seconds (time entries between prev commit and this commit)
+  timeSincePrevCommit: number;
+  timeInvestedBeforeCommit: number;
   filesChanged: number;
   insertions: number;
   deletions: number;
-  timePerFileChanged: number; // average time per file
-  productivityScore: number; // lower is better (time / changes)
+  timePerFileChanged: number;
+  productivityScore: number;
 }
 
 export interface PeriodProductivity {
-  period: string; // "YYYY-MM-DD" or "YYYY-Www"
-  totalTime: number; // seconds
+  period: string;
+  totalTime: number;
   commits: number;
   avgTimePerCommit: number;
   productivityTrend: "high" | "medium" | "low";
-  peakHourOfDay: number; // 0-23
+  peakHourOfDay: number;
 }
 
 export interface SoftwareArchaeology {
@@ -33,8 +34,8 @@ export interface SoftwareArchaeology {
   averageTimePerCommit: number;
   mostProductiveDay: string;
   leastProductiveDay: string;
-  commitVelocity: number; // commits per day
-  costPerCommit: number; // seconds per commit
+  commitVelocity: number;
+  costPerCommit: number;
 }
 
 export class TimeCommitAnalyzer {
@@ -44,9 +45,6 @@ export class TimeCommitAnalyzer {
     this.gitAnalyzer = new GitAnalyzer(projectPath);
   }
 
-  /**
-   * Analyze time-to-commit metrics for a period
-   */
   analyzeTimeToCommit(
     allData: DailyStats[],
     days: number = 30,
@@ -60,7 +58,6 @@ export class TimeCommitAnalyzer {
       const commit = gitMetrics.commits[i];
       const prevCommit = gitMetrics.commits[i + 1];
 
-      // Time since previous commit
       const prevCommitTime = prevCommit
         ? prevCommit.timestamp
         : commit.timestamp - 24 * 60 * 60 * 1000;
@@ -68,7 +65,6 @@ export class TimeCommitAnalyzer {
         (commit.timestamp - prevCommitTime) / 1000,
       );
 
-      // Find time entries between prev commit and this commit
       const timeInvestedBeforeCommit = allTimeEntries
         .filter((entry) => {
           const entryTime = entry.timestamp;
@@ -76,10 +72,8 @@ export class TimeCommitAnalyzer {
         })
         .reduce((sum, entry) => sum + entry.duration, 0);
 
-      // Get commit stats
       const stats = this.gitAnalyzer.getCommitStats(commit.hash);
 
-      // Calculate metrics
       const filesChanged = Math.max(stats.filesChanged, 1);
       const timePerFile = timeInvestedBeforeCommit / filesChanged;
       const changes = stats.insertions + stats.deletions;
@@ -102,7 +96,6 @@ export class TimeCommitAnalyzer {
       });
     }
 
-    // Summary statistics
     const totalTimeInvested = allTimeEntries.reduce(
       (sum, e) => sum + e.duration,
       0,
@@ -111,10 +104,9 @@ export class TimeCommitAnalyzer {
     const averageTimePerCommit =
       totalCommits > 0 ? totalTimeInvested / totalCommits : 0;
 
-    // Find most and least productive days
     const timeByDay: Record<string, number> = {};
     allTimeEntries.forEach((entry) => {
-      const day = new Date(entry.timestamp).toISOString().split("T")[0];
+      const day = getLocalDateString(new Date(entry.timestamp));
       timeByDay[day] = (timeByDay[day] || 0) + entry.duration;
     });
 
@@ -144,14 +136,10 @@ export class TimeCommitAnalyzer {
     };
   }
 
-  /**
-   * Get daily productivity breakdown
-   */
   getDailyProductivity(allData: DailyStats[]): PeriodProductivity[] {
     const gitMetrics = this.gitAnalyzer.getCommitHistory(30);
     const dailyMetrics: Record<string, PeriodProductivity> = {};
 
-    // Initialize with time data
     allData.forEach((day) => {
       let totalTime = 0;
       const hours: Record<number, number> = {};
@@ -174,7 +162,6 @@ export class TimeCommitAnalyzer {
       };
     });
 
-    // Add commit data
     gitMetrics.commits.forEach((commit) => {
       const day = commit.dateStr;
       if (dailyMetrics[day]) {
@@ -182,13 +169,11 @@ export class TimeCommitAnalyzer {
       }
     });
 
-    // Calculate productivity trends
     Object.values(dailyMetrics).forEach((day) => {
       const avgPerCommit =
         day.commits > 0 ? day.totalTime / day.commits : day.totalTime;
       day.avgTimePerCommit = avgPerCommit;
 
-      // Score: low = good (commits without excessive time)
       const timePerChange =
         day.commits > 0 ? day.totalTime / day.commits : day.totalTime;
       day.productivityTrend =
@@ -200,12 +185,9 @@ export class TimeCommitAnalyzer {
     );
   }
 
-  /**
-   * Identify commits with unusual time ratios (opportunities for optimization)
-   */
   getOptimizationOpportunities(
     allData: DailyStats[],
-    threshold: number = 1.5, // 1.5x average time
+    threshold: number = 1.5,
   ): TimeToCommitMetrics[] {
     const analysis = this.analyzeTimeToCommit(allData);
 

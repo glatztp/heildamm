@@ -1,4 +1,5 @@
 import { DailyStats, TimeEntry } from "./storage";
+import { getLocalDateString } from "./constants";
 
 export class ExporterService {
   exportToCSV(
@@ -24,7 +25,7 @@ export class ExporterService {
       "Author",
     ];
     const rows = entries.map((entry) => {
-      const date = new Date(entry.timestamp).toISOString().split("T")[0];
+      const date = getLocalDateString(new Date(entry.timestamp));
       const time = new Date(entry.timestamp).toISOString().split("T")[1];
       const durationMin = Math.round(entry.duration / 60);
       return [
@@ -53,13 +54,6 @@ export class ExporterService {
     return csvContent;
   }
 
-  /**
-   * Export data to Markdown format
-   * @param data - Array of daily stats
-   * @param startDate - Start date filter (YYYY-MM-DD)
-   * @param endDate - End date filter (YYYY-MM-DD)
-   * @returns Markdown string
-   */
   exportToMarkdown(
     data: DailyStats[],
     startDate?: string,
@@ -97,7 +91,6 @@ export class ExporterService {
       markdown += `\n`;
     });
 
-    // Summary section
     markdown += `## Summary\n\n`;
     markdown += `**Total Time:** ${this.formatDuration(totalSeconds)}\n\n`;
 
@@ -118,27 +111,16 @@ export class ExporterService {
     return markdown;
   }
 
-  /**
-   * Get data for the last N days
-   * @param data - Array of daily stats
-   * @param days - Number of days to include
-   * @returns Filtered array
-   */
+
   getLastNDays(data: DailyStats[], days: number): DailyStats[] {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
-    const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
+    const cutoffDateStr = getLocalDateString(cutoffDate);
 
     return data.filter((day) => day.date >= cutoffDateStr);
   }
 
-  /**
-   * Filter data by date range
-   * @param data - Array of daily stats
-   * @param startDate - Start date (YYYY-MM-DD)
-   * @param endDate - End date (YYYY-MM-DD)
-   * @returns Filtered array
-   */
+
   private filterByDateRange(
     data: DailyStats[],
     startDate?: string,
@@ -151,9 +133,6 @@ export class ExporterService {
     });
   }
 
-  /**
-   * Format duration from seconds to human-readable string
-   */
   private formatDuration(seconds: number): string {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
