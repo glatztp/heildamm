@@ -50,6 +50,8 @@ const USER_PROMPTS = {
   packageManager: "Select your preferred package manager",
   cicdSetup: "Would you like to set up CI/CD?",
   cicdPlatform: "Select your CI/CD platform",
+  timeTrackerSetup:
+    "Would you like to set up Heildamm Time Tracker for productivity tracking?",
   confirmCreation: "Proceed with creating",
   installDependencies: "Install dependencies now?",
   openVSCode: "Open project in VS Code?",
@@ -135,6 +137,33 @@ function processPackageJson(filePath: string, projectName: string): void {
 
 function logError(message: string): void {
   console.log(chalk.hex(COLORS.primary)(`\n   Error: ${message}\n`));
+}
+
+function displayTimeTrackerInfo(enabled: boolean): void {
+  console.log("\n");
+  if (enabled) {
+    console.log(chalk.hex(COLORS.secondary)("   Time Tracker Configured\n"));
+    console.log(
+      chalk.gray(
+        `   The Heildamm Time Tracker extension will:\n` +
+          `   • Automatically track coding sessions in VS Code\n` +
+          `   • Monitor time spent per file and project\n` +
+          `   • Provide productivity insights and metrics\n` +
+          `   • Store all data locally without external services\n` +
+          `   • Integrate with analytics for comprehensive reports\n`,
+      ),
+    );
+  } else {
+    console.log(
+      chalk.hex(COLORS.secondary)("   Time Tracker not configured\n"),
+    );
+    console.log(
+      chalk.gray(
+        `   You can enable it later by installing the\n` +
+          `   'heildamm-time-tracker' VS Code extension.\n`,
+      ),
+    );
+  }
 }
 
 async function installDependencies(
@@ -291,6 +320,9 @@ async function createProject(): Promise<void> {
   } else {
     await displayCICDInfo(cicdConfig);
   }
+
+  const enableTimeTracker = await promptConfirm(USER_PROMPTS.timeTrackerSetup);
+  displayTimeTrackerInfo(enableTimeTracker);
 
   const enableAnalytics = await promptConfirm(
     "\n Enable anonymous analytics to help improve Heildamm?",
