@@ -15,11 +15,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
     "activity": "node scripts/show-activity.js",
-    "setup-hooks": "node scripts/setup-hooks.js",
     "tracker:build": "node scripts/build-tracker.js",
     "tracker:install": "node scripts/install-tracker.js",
-    "tracker:watch": "cd .vscode-time-tracker && npm run esbuild-watch",
-    "postinstall": "node scripts/setup-hooks.js"
+    "tracker:watch": "cd .vscode-time-tracker && npm run esbuild-watch"
   },
   "files": [
     "dist",
