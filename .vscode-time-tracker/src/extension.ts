@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 import { StorageService } from "./storage";
 import { ContextService } from "./context";
 import { TimeTracker } from "./tracker";
@@ -16,10 +18,48 @@ let exporter: ExporterService;
 let commitAnalyzer: TimeCommitAnalyzer;
 let webviewPanel: WebviewPanel;
 let activeTimer: NodeJS.Timeout | null = null;
+let lockTimer: NodeJS.Timeout | null = null;
 let statusBar: vscode.StatusBarItem;
 let statusBarMode: "total" | "project" = "total";
 
+let lockFile: string;
+const instanceId = Date.now().toString();
+let isMainInstance = false;
+
+function acquireLock(): boolean {
+  try {
+    if (fs.existsSync(lockFile)) {
+      const content = fs.readFileSync(lockFile, "utf-8").trim();
+      const age = Date.now() - parseInt(content);
+      if (!isNaN(age) && age < 90000) {
+        return false;
+      }
+    }
+    fs.writeFileSync(lockFile, Date.now().toString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function refreshLock(): void {
+  try {
+    if (fs.existsSync(lockFile)) {
+      fs.writeFileSync(lockFile, Date.now().toString());
+    }
+  } catch {}
+}
+
+function releaseLock(): void {
+  try {
+    if (fs.existsSync(lockFile)) {
+      fs.unlinkSync(lockFile);
+    }
+  } catch {}
+}
+
 function startTracking(): void {
+  if (!isMainInstance) return;
   if (activeTimer) clearInterval(activeTimer);
 
   activeTimer = setInterval(() => {
@@ -32,6 +72,40 @@ function stopTracking(): void {
     clearInterval(activeTimer);
     activeTimer = null;
   }
+}
+
+function setupStatusBar(extContext: vscode.ExtensionContext): void {
+  statusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100,
+  );
+  statusBar.command = "heildamm-time-tracker.open-dashboard";
+  statusBar.tooltip =
+    "Click to open dashboard | Status: total/project time today";
+
+  updateStatusBar();
+  setInterval(updateStatusBar, 30000);
+
+  extContext.subscriptions.push(statusBar);
+}
+
+function updateStatusBar(): void {
+  const todayData = storage.getTodayData();
+  const todayStats = stats.getTodayStats(todayData);
+
+  let text = "";
+  if (statusBarMode === "total") {
+    text = `${todayStats.hours}h ${todayStats.minutes}m`;
+  } else {
+    const currentProject = context.getProject();
+    const projectTime = stats.getTodayProjectTime(todayData, currentProject);
+    const hours = Math.floor(projectTime / 3600);
+    const minutes = Math.floor((projectTime % 3600) / 60);
+    text = `${currentProject}: ${hours}h ${minutes}m`;
+  }
+
+  statusBar.text = isMainInstance ? text : `$(eye-closed) ${text}`;
+  statusBar.show();
 }
 
 function registerCommands(extensionContext: vscode.ExtensionContext): void {
@@ -131,10 +205,7 @@ function registerCommands(extensionContext: vscode.ExtensionContext): void {
 
       const csv = exporter.exportToCSV(allData);
       vscode.workspace
-        .openTextDocument({
-          content: csv,
-          language: "csv",
-        })
+        .openTextDocument({ content: csv, language: "csv" })
         .then((doc) => vscode.window.showTextDocument(doc));
     }),
   );
@@ -149,10 +220,7 @@ function registerCommands(extensionContext: vscode.ExtensionContext): void {
 
       const markdown = exporter.exportToMarkdown(allData);
       vscode.workspace
-        .openTextDocument({
-          content: markdown,
-          language: "markdown",
-        })
+        .openTextDocument({ content: markdown, language: "markdown" })
         .then((doc) => vscode.window.showTextDocument(doc));
     }),
   );
@@ -209,47 +277,10 @@ function registerCommands(extensionContext: vscode.ExtensionContext): void {
       });
 
       vscode.workspace
-        .openTextDocument({
-          content: report,
-          language: "markdown",
-        })
+        .openTextDocument({ content: report, language: "markdown" })
         .then((doc) => vscode.window.showTextDocument(doc));
     }),
   );
-}
-
-function setupStatusBar(extContext: vscode.ExtensionContext): void {
-  statusBar = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right,
-    100,
-  );
-  statusBar.command = "heildamm-time-tracker.open-dashboard";
-  statusBar.tooltip =
-    "Click to open dashboard | Status: total/project time today";
-
-  updateStatusBar();
-  setInterval(updateStatusBar, 30000);
-
-  extContext.subscriptions.push(statusBar);
-}
-
-function updateStatusBar(): void {
-  const todayData = storage.getTodayData();
-  const todayStats = stats.getTodayStats(todayData);
-
-  let text = "";
-  if (statusBarMode === "total") {
-    text = `${todayStats.hours}h ${todayStats.minutes}m`;
-  } else {
-    const currentProject = context.getProject();
-    const projectTime = stats.getTodayProjectTime(todayData, currentProject);
-    const hours = Math.floor(projectTime / 3600);
-    const minutes = Math.floor((projectTime % 3600) / 60);
-    text = `${currentProject}: ${hours}h ${minutes}m`;
-  }
-
-  statusBar.text = text;
-  statusBar.show();
 }
 
 export function activate(extensionContext: vscode.ExtensionContext): void {
@@ -262,7 +293,7 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   commitAnalyzer = new TimeCommitAnalyzer(workspacePath);
 
-  webviewPanel = new WebviewPanel(storage, stats, commitAnalyzer);
+  webviewPanel = new WebviewPanel(storage, stats);
 
   const idleTimeMinutes =
     vscode.workspace
@@ -278,11 +309,34 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
   );
 
   storage.ensureDirectory();
-  startTracking();
+
+  lockFile = path.join(storage.getDir(), ".lock");
+  isMainInstance = acquireLock();
+
+  if (isMainInstance) {
+    lockTimer = setInterval(refreshLock, 30000);
+
+    startTracking();
+
+    extensionContext.subscriptions.push(
+      vscode.window.onDidChangeWindowState((state) => {
+        if (state.focused) {
+          tracker.resetSession();
+          startTracking();
+        } else {
+          stopTracking();
+        }
+      }),
+    );
+  } else {
+    vscode.window.setStatusBarMessage(
+      "$(eye-closed) Heildamm: tracking desativado nesta janela",
+      5000,
+    );
+  }
+
   setupStatusBar(extensionContext);
   registerCommands(extensionContext);
-
-  console.log(`Status: ${StatusMessages.ACTIVATED}: ${context.getAuthor()}`);
 
   extensionContext.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
@@ -323,8 +377,19 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
       stopTracking();
     }),
   );
+
+  console.log(`${StatusMessages.ACTIVATED}: ${context.getAuthor()} | main=${isMainInstance}`);
 }
 
 export function deactivate(): void {
   stopTracking();
+
+  if (lockTimer) {
+    clearInterval(lockTimer);
+    lockTimer = null;
+  }
+
+  if (isMainInstance) {
+    releaseLock();
+  }
 }

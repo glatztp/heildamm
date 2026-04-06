@@ -5,9 +5,10 @@ import { MIN_SESSION_DURATION } from "./constants";
 export class TimeTracker {
   private lastActivityTime: number = Date.now();
   private sessionStartTime: number = Date.now();
+  private hasRealActivitySinceLastRecord: boolean = false;
   private context: ContextService;
   private onEntryRecorded: (entry: TimeEntry) => void;
-  private idleThresholdMs: number = 5 * 60 * 1000; // default 5 minutes
+  private idleThresholdMs: number = 5 * 60 * 1000;
 
   constructor(
     context: ContextService,
@@ -29,35 +30,43 @@ export class TimeTracker {
 
     if (timeSinceLastActivity > this.idleThresholdMs) {
       this.sessionStartTime = now;
-    } else {
-      const duration = Math.round((now - this.sessionStartTime) / 1000);
-      if (duration >= MIN_SESSION_DURATION) {
-        const entry: TimeEntry = {
-          timestamp: now,
-          duration,
-          file: this.context.getFile(),
-          language: this.context.getLanguage(),
-          project: this.context.getProject(),
-          author: this.context.getAuthor(),
-          branch: this.context.getBranch(),
-        };
-
-        this.onEntryRecorded(entry);
-      }
-
-      this.sessionStartTime = now;
+      this.lastActivityTime = now;
+      this.hasRealActivitySinceLastRecord = false;
+      return;
     }
 
+    if (!this.hasRealActivitySinceLastRecord) {
+      return;
+    }
+
+    const duration = Math.round((now - this.sessionStartTime) / 1000);
+    if (duration >= MIN_SESSION_DURATION) {
+      const entry: TimeEntry = {
+        timestamp: now,
+        duration,
+        file: this.context.getFile(),
+        language: this.context.getLanguage(),
+        project: this.context.getProject(),
+        author: this.context.getAuthor(),
+        branch: this.context.getBranch(),
+      };
+      this.onEntryRecorded(entry);
+    }
+
+    this.sessionStartTime = now;
     this.lastActivityTime = now;
+    this.hasRealActivitySinceLastRecord = false;
   }
 
   updateActivity(): void {
     this.lastActivityTime = Date.now();
+    this.hasRealActivitySinceLastRecord = true;
   }
 
   resetSession(): void {
     this.sessionStartTime = Date.now();
     this.lastActivityTime = Date.now();
+    this.hasRealActivitySinceLastRecord = false;
   }
 
   getSessionDuration(): number {
