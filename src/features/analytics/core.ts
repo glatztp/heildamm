@@ -1,7 +1,13 @@
 import fs from "fs";
-import { join } from "path";
-import { homedir } from "os";
 import { platform } from "os";
+import { HEILDAMM_DIR, ANALYTICS_FILE } from "./utils/index.js";
+import { getMostPopular, aggregateDistribution } from "./utils/index.js";
+import {
+  roundPercent,
+  calculatePercentage,
+  roundToWhole,
+} from "./utils/index.js";
+import { hasData } from "./utils/index.js";
 
 export interface ProjectMetrics {
   architecture: "feature-based" | "layer-based" | "domain-driven" | "monorepo";
@@ -53,12 +59,9 @@ export interface AnalyticsExport {
   privacyNotice: string;
 }
 
-const ANALYTICS_DIR = join(homedir(), ".heildamm");
-const ANALYTICS_FILE = join(ANALYTICS_DIR, "analytics.json");
-
 export async function initializeAnalytics(): Promise<void> {
-  if (!fs.existsSync(ANALYTICS_DIR)) {
-    fs.mkdirSync(ANALYTICS_DIR, { recursive: true });
+  if (!fs.existsSync(HEILDAMM_DIR)) {
+    fs.mkdirSync(HEILDAMM_DIR, { recursive: true });
   }
 
   if (!fs.existsSync(ANALYTICS_FILE)) {
@@ -115,7 +118,7 @@ export function trackProjectCreation(
   architecture: string,
   variant: string,
   packageManager: string,
-  cicdConfig?: { enabled: boolean; platform?: string }
+  cicdConfig?: { enabled: boolean; platform?: string },
 ): void {
   const enabled = isAnalyticsEnabled();
 
@@ -160,7 +163,7 @@ export function calculateAggregatedStats(): AggregatedStats {
   const store = getAnalyticsStore();
   const projects = store.projects || [];
 
-  if (projects.length === 0) {
+  if (!hasData(projects)) {
     return {
       totalProjects: 0,
       architectureDistribution: {},
@@ -176,10 +179,20 @@ export function calculateAggregatedStats(): AggregatedStats {
     };
   }
 
-  const architectureDistribution: Record<string, number> = {};
-  const variantDistribution: Record<string, number> = {};
-  const packageManagerPreference: Record<string, number> = {};
-  const platformDistribution: Record<string, number> = {};
+  // Usar aggregateDistribution para as distribuições
+  const archResult = aggregateDistribution(projects, (p) => p.architecture);
+  const variantResult = aggregateDistribution(projects, (p) => p.variant);
+  const packageManagerResult = aggregateDistribution(
+    projects,
+    (p) => p.packageManager,
+  );
+  const platformResult = aggregateDistribution(projects, (p) => p.platform);
+
+  const architectureDistribution = archResult.distribution;
+  const variantDistribution = variantResult.distribution;
+  const packageManagerPreference = packageManagerResult.distribution;
+  const platformDistribution = platformResult.distribution;
+
   const monthlyTrends: Record<
     string,
     { count: number; architectures: Record<string, number> }
@@ -188,18 +201,6 @@ export function calculateAggregatedStats(): AggregatedStats {
   let cicdCount = 0;
 
   for (const project of projects) {
-    architectureDistribution[project.architecture] =
-      (architectureDistribution[project.architecture] ?? 0) + 1;
-
-    variantDistribution[project.variant] =
-      (variantDistribution[project.variant] ?? 0) + 1;
-
-    packageManagerPreference[project.packageManager] =
-      (packageManagerPreference[project.packageManager] ?? 0) + 1;
-
-    platformDistribution[project.platform] =
-      (platformDistribution[project.platform] ?? 0) + 1;
-
     if (project.cicdEnabled) cicdCount += 1;
 
     const date = new Date(project.timestamp);
@@ -220,21 +221,9 @@ export function calculateAggregatedStats(): AggregatedStats {
       architectures: data.architectures,
     }));
 
-  const getMostPopular = (dist: Record<string, number>): string => {
-    let max = 0;
-    let popular = "N/A";
-    for (const [key, value] of Object.entries(dist)) {
-      if (value > max) {
-        max = value;
-        popular = key;
-      }
-    }
-    return popular;
-  };
-
   const monthsWithData = Object.keys(monthlyTrends).length;
   const averageProjectsPerMonth =
-    monthsWithData > 0 ? Math.round(projects.length / monthsWithData) : 0;
+    monthsWithData > 0 ? roundToWhole(projects.length / monthsWithData) : 0;
 
   return {
     totalProjects: projects.length,
@@ -242,11 +231,14 @@ export function calculateAggregatedStats(): AggregatedStats {
     variantDistribution,
     packageManagerPreference,
     platformDistribution,
-    cicdAdoptionRate: Math.round((cicdCount / projects.length) * 100),
+    cicdAdoptionRate: roundPercent(
+      calculatePercentage(cicdCount, projects.length),
+    ),
     averageProjectsPerMonth,
-    mostPopularArchitecture: getMostPopular(architectureDistribution),
-    mostPopularVariant: getMostPopular(variantDistribution),
-    mostPopularPackageManager: getMostPopular(packageManagerPreference),
+    mostPopularArchitecture: getMostPopular(architectureDistribution) ?? "N/A",
+    mostPopularVariant: getMostPopular(variantDistribution) ?? "N/A",
+    mostPopularPackageManager:
+      getMostPopular(packageManagerPreference) ?? "N/A",
     trendData,
   };
 }

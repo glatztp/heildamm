@@ -67,14 +67,22 @@ npm run test
 
 ### Commands
 
+Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) and type any of the following commands:
+
+#### Analytics & Reporting
 - **Show All Stats**: View total time, top files, and language breakdown
 - **Show Today**: Display today's tracking summary
+- **Generate Software Archaeology Report**: Analyze time investment per git commit
+
+#### Data Management
+- **Open Dashboard**: Open the interactive dashboard for visual analytics
 - **Export Data to CSV**: Export tracking data in spreadsheet-friendly format
 - **Export Data to Markdown**: Export as markdown report with summaries
-- **Generate Software Archaeology Report**: Analyze time investment per git commit
-- **Open Data Directory**: Access tracking files directly
-- **Toggle Status Bar**: Switch between total time and per-project time display
+- **Open Data Directory**: Access tracking files directly (in `~/.heildamm-time-tracker/`)
 - **Clear Data**: Remove all tracking data (with confirmation)
+
+#### Display
+- **Toggle Status Bar**: Switch between total time and per-project time display
 
 ### Status Bar
 

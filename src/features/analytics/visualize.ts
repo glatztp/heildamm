@@ -1,12 +1,24 @@
 import chalk from "chalk";
 import gradient from "gradient-string";
 import type { AggregatedStats, TrendData } from "./core.js";
+import type {
+  TimeToCommitRatio,
+  ProductivityInsights,
+} from "./productivity-insights.js";
+import { getAnalyticsStore } from "./core.js";
 
 const COLORS = {
   primary: "#8e61c6",
   secondary: "#a277ff",
   accent: "#c5a3ff",
 } as const;
+
+const SEPARATORS = {
+  top: "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓",
+  bottom: "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛",
+  middle: "├────────────────────────────────────────────────────────────────┤",
+  vertical: "│",
+};
 
 function renderBarChart(
   data: Record<string, number>,
@@ -22,13 +34,13 @@ function renderBarChart(
       const barWidth = Math.round((percentage / 100) * maxWidth);
       const bar = "█".repeat(barWidth) + "░".repeat(maxWidth - barWidth);
       const percent = percentage.toFixed(1);
-      return `  ${label.padEnd(15)} │ ${bar} │ ${String(value).padStart(4)} (${percent}%)`;
+      return `    ${label.padEnd(18)} ${bar} ${String(value).padStart(4)} (${percent.padStart(5)}%)`;
     })
     .join("\n");
 }
 
 function renderLineChart(trendData: TrendData[]): string {
-  if (trendData.length === 0) return "  No data available\n";
+  if (trendData.length === 0) return "    No data available\n";
 
   const maxCount = Math.max(...trendData.map((d) => d.count), 1);
   const height = 10;
@@ -37,7 +49,7 @@ function renderLineChart(trendData: TrendData[]): string {
 
   for (let h = height; h >= 0; h--) {
     const threshold = (h / height) * maxCount;
-    let line = `  ${String(Math.round(threshold)).padStart(4)} │ `;
+    let line = `    ${String(Math.round(threshold)).padStart(4)} │ `;
 
     for (let i = 0; i < trendData.length; i++) {
       const point = trendData[i];
@@ -51,59 +63,159 @@ function renderLineChart(trendData: TrendData[]): string {
     lines.push(line);
   }
 
-  lines.push("       ├─" + "──".repeat(trendData.length));
+  lines.push("         ├─" + "──".repeat(trendData.length));
   lines.push(
-    "       │ " + trendData.map((d) => d.month.substring(5)).join(" "),
+    "         │ " + trendData.map((d) => d.month.substring(5)).join(" "),
   );
 
   return lines.join("\n");
 }
 
+function pad(
+  text: string,
+  width: number,
+  align: "left" | "right" = "left",
+): string {
+  if (align === "right") {
+    return text.padStart(width);
+  }
+  return text.padEnd(width);
+}
+
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("pt-BR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
 export function displayAnalyticsDashboard(stats: AggregatedStats): void {
+  const store = getAnalyticsStore();
+
   console.log("\n");
-  console.log(gradient.cristal.multiline("HEILDAMM ANALYTICS DASHBOARD"));
+  console.log(chalk.hex(COLORS.primary)(SEPARATORS.top));
+
+  // Title
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      chalk
+        .hex(COLORS.secondary)
+        .bold(
+          gradient.cristal.multiline(
+            pad("  📊 HEILDAMM ANALYTICS DASHBOARD", 63),
+          )[0],
+        )
+        .padEnd(62) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+
+  console.log(chalk.hex(COLORS.primary)(SEPARATORS.middle));
+
+  // Period Information
+  const firstProject = store.projects[0];
+  const lastProject = store.projects[store.projects.length - 1];
+  const periodStart = firstProject ? formatDate(firstProject.timestamp) : "N/A";
+  const periodEnd = lastProject ? formatDate(lastProject.timestamp) : "N/A";
+
+  const periodText = `Período: ${periodStart} até ${periodEnd} (${store.projects.length} projetos)`;
+  const paddedPeriod = pad(pad("  " + periodText, 62, "left"), 62);
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      chalk.gray(paddedPeriod) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+
+  console.log(chalk.hex(COLORS.primary)(SEPARATORS.middle));
+
+  // Overall Statistics - Grid Format
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      chalk
+        .bold(chalk.hex(COLORS.secondary)("  📈 ESTATÍSTICAS GERAIS"))
+        .padEnd(63) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+  console.log(chalk.hex(COLORS.primary)(SEPARATORS.middle));
+
+  const stats1 = `  🎯 Total de Projetos: ${chalk.bold.cyan(String(stats.totalProjects))}`;
+  const stats2 = `  📅 Média Por Mês: ${chalk.bold.cyan(String(stats.averageProjectsPerMonth))}`;
+  const stats3 = `  🔄 Taxa CI/CD: ${chalk.bold.cyan(stats.cicdAdoptionRate + "%")}`;
+
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      pad(stats1, 30) +
+      pad(stats2, 32) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      pad(stats3, 62) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+
+  console.log(chalk.hex(COLORS.primary)(SEPARATORS.middle));
+
+  // Top Choices
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      chalk
+        .bold(chalk.hex(COLORS.secondary)("  ⭐ CONFIGURAÇÕES MAIS POPULARES"))
+        .padEnd(63) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+  console.log(chalk.hex(COLORS.primary)(SEPARATORS.middle));
+
+  const archText = `  Architecture: ${chalk.bold.yellow(stats.mostPopularArchitecture)}`;
+  const variantText = `  Variant: ${chalk.bold.yellow(stats.mostPopularVariant)}`;
+  const pmText = `  Gerenciador: ${chalk.bold.yellow(stats.mostPopularPackageManager)}`;
+
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      pad(archText, 31) +
+      pad(variantText, 31) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+
+  console.log(
+    chalk.hex(COLORS.primary)(SEPARATORS.vertical) +
+      pad(pmText, 62) +
+      chalk.hex(COLORS.primary)(SEPARATORS.vertical),
+  );
+
+  console.log(chalk.hex(COLORS.primary)(SEPARATORS.bottom));
   console.log();
 
-  console.log(chalk.bold(chalk.hex(COLORS.secondary)("Overall Statistics\n")));
+  // Architecture Distribution
   console.log(
-    `  Total Projects Created:        ${chalk.bold(String(stats.totalProjects))}`,
-  );
-  console.log(
-    `  Average Per Month:             ${chalk.bold(String(stats.averageProjectsPerMonth))}`,
-  );
-  console.log(
-    `  CI/CD Adoption Rate:           ${chalk.bold(stats.cicdAdoptionRate + "%")}`,
-  );
-  console.log(
-    `  Most Popular Architecture:     ${chalk.bold(stats.mostPopularArchitecture)}`,
-  );
-  console.log(
-    `  Most Popular Variant:          ${chalk.bold(stats.mostPopularVariant)}`,
-  );
-  console.log(
-    `  Most Popular Package Manager:  ${chalk.bold(stats.mostPopularPackageManager)}\n`,
-  );
-
-  console.log(
-    chalk.bold(chalk.hex(COLORS.secondary)("Architecture Distribution\n")),
+    chalk.bold(chalk.hex(COLORS.secondary)("📦 DISTRIBUIÇÃO DE ARQUITETURA\n")),
   );
   console.log(renderBarChart(stats.architectureDistribution));
   console.log();
 
+  // Variant Distribution
   console.log(
-    chalk.bold(chalk.hex(COLORS.secondary)("Variant Distribution\n")),
+    chalk.bold(chalk.hex(COLORS.secondary)("🎨 DISTRIBUIÇÃO DE VARIANTES\n")),
   );
   console.log(renderBarChart(stats.variantDistribution));
   console.log();
 
+  // Package Manager Preference
   console.log(
-    chalk.bold(chalk.hex(COLORS.secondary)("Package Manager Preference\n")),
+    chalk.bold(
+      chalk.hex(COLORS.secondary)(
+        "📦 PREFERÊNCIA DE GERENCIADORES DE PACOTES\n",
+      ),
+    ),
   );
   console.log(renderBarChart(stats.packageManagerPreference));
   console.log();
 
+  // Platform Distribution
   console.log(
-    chalk.bold(chalk.hex(COLORS.secondary)("Platform Distribution\n")),
+    chalk.bold(chalk.hex(COLORS.secondary)("💻 DISTRIBUIÇÃO POR PLATAFORMA\n")),
   );
   const platformNames = {
     win32: "Windows",
@@ -120,17 +232,22 @@ export function displayAnalyticsDashboard(stats: AggregatedStats): void {
   console.log(renderBarChart(platformsFormatted));
   console.log();
 
+  // Trend Data
   if (stats.trendData.length > 0) {
     console.log(
-      chalk.bold(chalk.hex(COLORS.secondary)("Projects Over Time\n")),
+      chalk.bold(
+        chalk.hex(COLORS.secondary)("📈 PROJETOS AO LONGO DO TEMPO\n"),
+      ),
     );
     console.log(renderLineChart(stats.trendData));
     console.log();
   }
 
+  // Summary Footer
+  console.log(chalk.hex(COLORS.primary)("─".repeat(70)));
   console.log(
     chalk.gray(
-      "Note: All statistics are anonymized. No personal data is collected or stored.\n",
+      "✓ Todos os dados são anônimos. Nenhuma informação pessoal é armazenada ou transmitida.\n",
     ),
   );
 }
@@ -153,7 +270,7 @@ export function displayAnalyticsSettings(enabled: boolean): void {
   console.log("\n");
   console.log(chalk.hex(COLORS.secondary).bold("Analytics & Usage"));
   console.log(
-    `  Status: ${enabled ? chalk.green("Enabled ✓") : chalk.red("Disabled ✗")}`,
+    `  Status: ${enabled ? chalk.green("Enabled") : chalk.red("Disabled")}`,
   );
   console.log();
   console.log(
@@ -215,4 +332,129 @@ export function createAnalyticsReport(stats: AggregatedStats): string {
     "*All data is anonymized. No personal information is included in this report.*\n";
 
   return report;
+}
+
+export function displayProductivityDashboard(
+  insights: ProductivityInsights,
+): void {
+  console.log("\n");
+  console.log(gradient.cristal.multiline("PRODUCTIVITY INSIGHTS DASHBOARD"));
+  console.log();
+
+  console.log(chalk.bold(chalk.hex(COLORS.secondary)("Overall Score\n")));
+  const scoreBar =
+    "█".repeat(Math.round(insights.averageProductivityScore / 5)) +
+    "░".repeat(20 - Math.round(insights.averageProductivityScore / 5));
+  const scoreColor =
+    insights.averageProductivityScore >= 80
+      ? chalk.green
+      : insights.averageProductivityScore >= 50
+        ? chalk.yellow
+        : chalk.red;
+  console.log(
+    `  ${scoreColor(scoreBar)} ${chalk.bold(insights.averageProductivityScore)}/100\n`,
+  );
+
+  if (insights.timeToCommitRatios.length > 0) {
+    console.log(
+      chalk.bold(chalk.hex(COLORS.secondary)("Time-to-Commit Analysis\n")),
+    );
+
+    for (const ratio of insights.timeToCommitRatios.slice(0, 5)) {
+      const projectName = ratio.projectPath.split("/").pop() || "project";
+      const efficiencyColor =
+        ratio.efficiency === "high"
+          ? chalk.green
+          : ratio.efficiency === "medium"
+            ? chalk.yellow
+            : chalk.red;
+
+      console.log(`  ${chalk.bold(projectName)}`);
+      console.log(`     Tracked Time: ${ratio.totalTrackedHours}h`);
+      console.log(
+        `     Time/Commit: ${(ratio.totalTrackedHours / 10).toFixed(2)}h (${efficiencyColor(ratio.efficiency)})`,
+      );
+      console.log(
+        `     Commit Frequency: every ${ratio.commitFrequencyDays.toFixed(1)} days`,
+      );
+      console.log();
+    }
+  }
+
+  if (insights.patterns) {
+    console.log(chalk.bold(chalk.hex(COLORS.secondary)("Work Patterns\n")));
+    console.log(
+      `  Average Session: ${insights.patterns.averageSessionLength.toFixed(1)}h`,
+    );
+    console.log(
+      `  Longest Session: ${insights.patterns.longestWorkSession.toFixed(1)}h`,
+    );
+    console.log(
+      `  Commits per Session: ${insights.patterns.commitsPerSession}`,
+    );
+    console.log(
+      `  Avg Time per Commit: ${insights.patterns.estimatedTimePerCommit.toFixed(1)}h\n`,
+    );
+  }
+
+  if (insights.recommendations.length > 0) {
+    console.log(chalk.bold(chalk.hex(COLORS.secondary)("Recommendations\n")));
+    for (const rec of insights.recommendations) {
+      console.log(`  ${rec}`);
+    }
+    console.log();
+  }
+}
+
+export function displayTimeToCommitDetails(ratio: TimeToCommitRatio): void {
+  console.log("\n");
+  console.log(chalk.hex(COLORS.secondary).bold(`Time-to-Commit Analysis`));
+  console.log(`Project: ${chalk.bold(ratio.projectPath)}\n`);
+
+  const scoreBar =
+    "█".repeat(Math.round(ratio.productivityScore / 5)) +
+    "░".repeat(20 - Math.round(ratio.productivityScore / 5));
+
+  console.log(
+    `  Productivity Score: ${scoreBar} ${chalk.bold(ratio.productivityScore)}/100`,
+  );
+  console.log();
+
+  console.log(chalk.bold("Metrics:"));
+  console.log(
+    `  Total Tracked Time: ${chalk.cyan(ratio.totalTrackedHours + "h")}`,
+  );
+  console.log(
+    `  Hours Since Last Commit: ${chalk.cyan(ratio.hoursSinceLastCommit + "h")}`,
+  );
+  console.log(
+    `  Commit Frequency: ${chalk.cyan("every " + ratio.commitFrequencyDays + " days")}`,
+  );
+  console.log();
+
+  console.log(chalk.bold("Efficiency:"));
+  const efficiencyEmoji =
+    ratio.efficiency === "high"
+      ? ">"
+      : ratio.efficiency === "medium"
+        ? "-"
+        : "!";
+  const efficiencyColor =
+    ratio.efficiency === "high"
+      ? chalk.green
+      : ratio.efficiency === "medium"
+        ? chalk.yellow
+        : chalk.red;
+  console.log(
+    `  ${efficiencyEmoji} ${efficiencyColor(ratio.efficiency.toUpperCase())}`,
+  );
+  console.log();
+
+  if (ratio.insights.length > 0) {
+    console.log(chalk.bold("Insights:"));
+    for (const insight of ratio.insights) {
+      console.log(`  ${insight}`);
+    }
+    console.log();
+  }
 }

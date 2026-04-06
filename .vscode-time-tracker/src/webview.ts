@@ -32,7 +32,7 @@ export class WebviewPanel {
       "heildammTracker",
       "Heildamm — Time Tracker",
       vscode.ViewColumn.Two,
-      { enableScripts: true }
+      { enableScripts: true },
     );
 
     this.panel.webview.html = this.getHtmlContent();
@@ -60,7 +60,7 @@ export class WebviewPanel {
       allData.forEach((daily) => {
         daily.entries.forEach((entry) => {
           lines.push(
-            `${daily.date},${this.escapeCsv(entry.file)},${this.escapeCsv(entry.language)},${entry.duration},${(entry.duration / 60).toFixed(1)}`
+            `${daily.date},${this.escapeCsv(entry.file)},${this.escapeCsv(entry.language)},${entry.duration},${(entry.duration / 60).toFixed(1)}`,
           );
         });
       });
@@ -89,7 +89,7 @@ export class WebviewPanel {
     const totalDays = dayStats.length;
     const totalSeconds = allData.reduce(
       (s, d) => s + d.entries.reduce((ss, e) => ss + e.duration, 0),
-      0
+      0,
     );
     const totalEntries = allData.reduce((s, d) => s + d.entries.length, 0);
     const avgHoursPerDay =
@@ -114,11 +114,11 @@ export class WebviewPanel {
       monthMap[m] = (monthMap[m] || 0) + d.totalSeconds;
     });
     const monthData = Object.entries(monthMap).sort(([a], [b]) =>
-      a.localeCompare(b)
+      a.localeCompare(b),
     );
 
     const chartDays = [...dayStats].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
     const chartDataJson = JSON.stringify(
@@ -128,7 +128,7 @@ export class WebviewPanel {
         hours: +(d.hours + d.minutes / 60).toFixed(2),
         files: d.files,
         totalSeconds: d.totalSeconds,
-      }))
+      })),
     );
 
     const topFilesJson = JSON.stringify(
@@ -137,7 +137,7 @@ export class WebviewPanel {
         language: f.language,
         duration: f.duration,
         label: this.stats.formatDuration(f.duration),
-      }))
+      })),
     );
 
     const languagesJson = JSON.stringify(
@@ -145,17 +145,18 @@ export class WebviewPanel {
         language: l.language,
         duration: l.duration,
         label: this.stats.formatDuration(l.duration),
-      }))
+      })),
     );
 
     const weekdayJson = JSON.stringify(
-      ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, i) => ({
-        label,
+      ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((labelPt, i) => ({
+        labelPt,
+        labelEn: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][i],
         avgSeconds:
           weekdayCounts[i] > 0 ? weekdayTotals[i] / weekdayCounts[i] : 0,
         totalSeconds: weekdayTotals[i],
         days: weekdayCounts[i],
-      }))
+      })),
     );
 
     const monthDataJson = JSON.stringify(
@@ -166,7 +167,7 @@ export class WebviewPanel {
           month: "short",
           year: "2-digit",
         }),
-      }))
+      })),
     );
 
     const firstDate = chartDays.length > 0 ? chartDays[0].date : "—";
@@ -174,7 +175,7 @@ export class WebviewPanel {
       chartDays.length > 0 ? chartDays[chartDays.length - 1].date : "—";
 
     return /* html */ `<!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -183,20 +184,28 @@ export class WebviewPanel {
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;900&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
 
 :root {
-  --p:       #9d6fd4;
-  --p-lo:    rgba(157,111,212,0.08);
-  --p-mid:   rgba(157,111,212,0.18);
-  --p-hi:    rgba(157,111,212,0.35);
-  --p-line:  rgba(157,111,212,0.22);
-  --accent:  #c49ef0;
-  --bg:      var(--vscode-editor-background);
-  --fg:      var(--vscode-editor-foreground);
-  --surface: var(--vscode-sideBar-background, rgba(255,255,255,0.03));
-  --border:  var(--vscode-panel-border, rgba(157,111,212,0.15));
-  --muted:   var(--vscode-descriptionForeground);
-  --mono:    'IBM Plex Mono', monospace;
-  --cond:    'Barlow Condensed', sans-serif;
+  --p:      #9d6fd4;
+  --p-lo:   rgba(157,111,212,0.08);
+  --p-mid:  rgba(157,111,212,0.18);
+  --p-hi:   rgba(157,111,212,0.35);
+  --p-line: rgba(157,111,212,0.22);
+  --accent: #c49ef0;
+  --bg:     var(--vscode-editor-background);
+  --fg:     var(--vscode-editor-foreground);
+  --surf:   var(--vscode-sideBar-background, rgba(255,255,255,0.03));
+  --bdr:    var(--vscode-panel-border, rgba(157,111,212,0.15));
+  --muted:  var(--vscode-descriptionForeground);
+  --mono:   'IBM Plex Mono', monospace;
+  --cond:   'Barlow Condensed', sans-serif;
+  --nav-w:  40px;
+  --top-h:  44px;
+  --bot-h:  26px;
 }
+.en { display: none; }
+body.lang-pt .pt { display: revert; }
+body.lang-pt .en { display: none; }
+body.lang-en .pt { display: none; }
+body.lang-en .en { display: revert; }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -218,141 +227,147 @@ body {
 .topbar {
   position: sticky; top: 0; z-index: 100;
   background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px; height: 44px;
+  border-bottom: 1px solid var(--bdr);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 0 10px;
+  height: var(--top-h);
 }
 .logo {
   font-family: var(--cond);
-  font-weight: 900; font-size: 20px; letter-spacing: 0.04em;
-  color: var(--p); display: flex; align-items: baseline; gap: 10px;
+  font-weight: 900; font-size: 19px; letter-spacing: 0.04em;
+  color: var(--p); display: flex; align-items: baseline; gap: 8px;
+  white-space: nowrap;
 }
-.logo-eyebrow {
+.logo-sub {
   font-size: 9px; font-weight: 400; font-family: var(--mono);
-  color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); letter-spacing: 0.16em; text-transform: uppercase;
 }
-.topbar-actions { display: flex; gap: 6px; align-items: center; }
+.topbar-center { font-size: 10px; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.lang-toggle { display: flex; border: 1px solid var(--bdr); border-radius: 3px; overflow: hidden; }
+.lang-toggle .btn { border: none; border-radius: 0; padding: 3px 8px; font-size: 9px; letter-spacing: .06em; }
+.lang-toggle .btn + .btn { border-left: 1px solid var(--bdr); }
+.lang-toggle .btn.active { background: var(--p-mid); color: var(--p); }
 
 /* ── BUTTONS ── */
 .btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 11px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 3px 10px; min-height: 24px;
+  border: 1px solid var(--bdr); border-radius: 3px;
   background: transparent; color: var(--muted);
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
-  cursor: pointer; transition: all .15s;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.03em;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
 }
-.btn:hover { border-color: var(--p); color: var(--p); background: var(--p-lo); }
+.btn:hover  { border-color: var(--p); color: var(--p); background: var(--p-lo); }
 .btn.active { border-color: var(--p); color: var(--p); background: var(--p-mid); }
-.btn-primary {
-  background: var(--p); color: #fff; border-color: var(--p);
-  font-weight: 600;
-}
-.btn-primary:hover { opacity: .82; color: #fff; background: var(--p); }
 
 /* ── SIDENAV ── */
 .sidenav {
-  position: fixed; left: 0; top: 44px; bottom: 0; width: 40px;
-  border-right: 1px solid var(--border);
+  position: fixed; left: 0; top: var(--top-h); bottom: 0; width: var(--nav-w);
+  border-right: 1px solid var(--bdr);
   display: flex; flex-direction: column; align-items: center;
   padding: 10px 0; gap: 2px; z-index: 90; background: var(--bg);
 }
 .nav-item {
-  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
   border-radius: 4px; cursor: pointer; font-size: 13px;
   transition: all .15s; color: var(--muted);
   border: none; background: transparent; text-decoration: none;
 }
 .nav-item:hover, .nav-item.active { background: var(--p-mid); color: var(--p); }
-.nav-divider { width: 20px; height: 1px; background: var(--border); margin: 4px 0; }
+.nav-divider { width: 18px; height: 1px; background: var(--bdr); margin: 3px 0; }
 
 /* ── MAIN LAYOUT ── */
-.main { margin-left: 40px; padding: 20px 24px 64px; }
+.main { margin-left: var(--nav-w); padding: 18px 20px calc(var(--bot-h) + 18px); min-width: 0; overflow-x: hidden; }
 
 /* ── SECTION ── */
-.section { margin-bottom: 32px; }
+.section { margin-bottom: 28px; }
 .section-label {
-  font-size: 9px; font-weight: 600; letter-spacing: 0.22em;
+  font-size: 9px; font-weight: 600; letter-spacing: 0.2em;
   text-transform: uppercase; color: var(--muted);
-  margin-bottom: 12px;
-  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
 }
 .section-label::after {
-  content: ''; flex: 1; height: 1px; background: var(--border);
+  content: ''; flex: 1; height: 1px; background: var(--bdr);
 }
 
 /* ── KPI STRIP ── */
 .kpi-strip {
   display: grid;
-  grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
-  gap: 1px; background: var(--border);
-  border: 1px solid var(--border);
+  grid-template-columns: minmax(0,2fr) minmax(0,2fr) repeat(6, minmax(0,1fr));
+  gap: 1px; background: var(--bdr);
+  border: 1px solid var(--bdr);
   border-radius: 6px; overflow: hidden;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 .kpi {
   background: var(--bg);
-  padding: 18px 16px 14px;
+  padding: 16px 12px 12px;
   position: relative; overflow: hidden;
   transition: background .15s;
-  cursor: default;
+  cursor: default; min-width: 0;
 }
 .kpi::before {
   content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 1px;
+  top: 0; left: 0; right: 0; height: 2px;
   background: transparent; transition: background .2s;
 }
 .kpi:hover { background: var(--p-lo); }
 .kpi:hover::before { background: var(--p); }
 .kpi-label {
-  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 10px; display: block; font-weight: 500;
+  font-size: 9px; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px; display: block; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .kpi-value {
   font-family: var(--cond);
-  font-size: 44px; font-weight: 900; line-height: 1;
+  font-size: 38px; font-weight: 900; line-height: 1;
   letter-spacing: -1px; color: var(--p);
+  white-space: nowrap;
 }
 .kpi-value.fg { color: var(--fg); }
 .kpi-unit {
   font-family: var(--cond);
-  font-size: 18px; font-weight: 300;
+  font-size: 16px; font-weight: 300;
   color: var(--muted); letter-spacing: 0;
-  margin-left: 2px;
+  margin-left: 1px;
 }
-.kpi-sub { font-size: 10px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+.kpi-sub { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── CHART CARD ── */
 .chart-card {
-  border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+  border: 1px solid var(--bdr); border-radius: 6px; overflow: hidden;
 }
 .chart-toolbar {
   display: flex; align-items: center; gap: 4px;
-  padding: 8px 12px; border-bottom: 1px solid var(--border);
-  background: var(--surface); flex-wrap: wrap;
+  padding: 7px 10px; border-bottom: 1px solid var(--bdr);
+  background: var(--surf); flex-wrap: wrap; row-gap: 4px;
 }
-.toolbar-sep { width: 1px; height: 14px; background: var(--border); margin: 0 4px; }
+.toolbar-sep { width: 1px; height: 14px; background: var(--bdr); margin: 0 3px; flex-shrink: 0; }
 .date-range {
-  display: flex; align-items: center; gap: 6px;
-  margin-left: auto; font-size: 10px; color: var(--muted);
+  display: flex; align-items: center; gap: 5px;
+  margin-left: auto; font-size: 10px; color: var(--muted); flex-shrink: 0;
 }
 input[type="date"] {
-  background: transparent; border: 1px solid var(--border); border-radius: 3px;
-  padding: 3px 7px; color: var(--fg);
+  background: transparent; border: 1px solid var(--bdr); border-radius: 3px;
+  padding: 2px 6px; color: var(--fg);
   font-family: var(--mono); font-size: 10px; outline: none;
 }
 input[type="date"]:focus { border-color: var(--p); }
-.chart-area { padding: 16px 14px 10px; }
-canvas { display: block; width: 100%; }
+.chart-area { padding: 14px 12px 8px; }
+canvas { display: block; width: 100% !important; }
 .chart-footer {
-  display: flex; gap: 16px; padding: 8px 14px;
-  border-top: 1px solid var(--border); background: var(--surface);
+  display: flex; gap: 12px; padding: 7px 12px;
+  border-top: 1px solid var(--bdr); background: var(--surf);
   font-size: 10px; color: var(--muted); align-items: center;
 }
 .legend-pip {
   width: 10px; height: 3px; border-radius: 2px;
-  background: var(--p); display: inline-block; margin-right: 5px;
+  background: var(--p); display: inline-block; margin-right: 4px; flex-shrink: 0;
 }
 
 /* ── TOOLTIP ── */
@@ -373,141 +388,131 @@ canvas { display: block; width: 100%; }
 .tooltip-row span { color: var(--fg); }
 
 /* ── GRID LAYOUTS ── */
-.grid-3 { display: grid; grid-template-columns: 1.7fr 1fr 1.1fr; gap: 14px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(0,1fr) minmax(0,1.1fr); gap: 12px; }
+.grid-2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
 
 /* ── PANEL ── */
 .panel {
-  border: 1px solid var(--border); border-radius: 6px;
-  overflow: hidden; display: flex; flex-direction: column;
+  border: 1px solid var(--bdr); border-radius: 6px;
+  overflow: hidden; display: flex; flex-direction: column; min-width: 0;
 }
 .panel-header {
-  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  padding: 9px 12px; border-bottom: 1px solid var(--bdr);
   display: flex; align-items: center; justify-content: space-between;
-  background: var(--surface); flex-shrink: 0;
+  background: var(--surf); flex-shrink: 0; gap: 8px; min-width: 0;
 }
 .panel-title {
   font-family: var(--cond);
   font-size: 12px; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.panel-meta { font-size: 10px; color: var(--p); }
+.panel-meta { font-size: 10px; color: var(--p); white-space: nowrap; flex-shrink: 0; }
 .panel-body { overflow-y: auto; flex: 1; }
 
 /* ── FILE ROWS ── */
 .file-row {
-  display: grid; grid-template-columns: 20px 1fr auto;
-  align-items: center; gap: 10px; padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
+  display: grid; grid-template-columns: 20px minmax(0,1fr) auto;
+  align-items: center; gap: 8px; padding: 7px 12px;
+  border-bottom: 1px solid var(--bdr);
   transition: background .1s; cursor: default;
 }
 .file-row:last-child { border-bottom: none; }
 .file-row:hover { background: var(--p-lo); }
-.file-rank { font-size: 9px; color: var(--muted); text-align: right; font-feature-settings: "tnum"; }
-.file-info { overflow: hidden; }
+.file-rank { font-size: 9px; color: var(--muted); text-align: right; font-feature-settings: "tnum"; flex-shrink: 0; }
+.file-info { overflow: hidden; min-width: 0; }
 .file-name {
   font-size: 11px; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;
+  overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
 }
-.bar-row { display: flex; align-items: center; gap: 6px; }
-.bar-track { flex: 1; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+.bar-row { display: flex; align-items: center; gap: 5px; }
+.bar-track { flex: 1; height: 2px; background: var(--bdr); border-radius: 1px; overflow: hidden; min-width: 0; }
 .bar-fill { height: 100%; background: var(--p); border-radius: 1px; }
-.bar-pct { font-size: 9px; color: var(--muted); width: 26px; text-align: right; font-feature-settings: "tnum"; }
+.bar-pct { font-size: 9px; color: var(--muted); width: 24px; text-align: right; font-feature-settings: "tnum"; flex-shrink: 0; }
 .file-right { text-align: right; flex-shrink: 0; }
 .file-time { font-size: 11px; font-weight: 500; color: var(--p); font-feature-settings: "tnum"; white-space: nowrap; }
 .lang-tag {
-  display: inline-block; margin-top: 3px;
-  padding: 1px 6px; border-radius: 2px;
+  display: inline-block; margin-top: 2px;
+  padding: 1px 5px; border-radius: 2px;
   background: var(--p-lo); color: var(--p);
   font-size: 9px; border: 1px solid var(--p-line);
 }
 
 /* ── LANGUAGE ROWS ── */
 .lang-row {
-  padding: 10px 14px; border-bottom: 1px solid var(--border);
-  transition: background .1s;
+  padding: 9px 12px; border-bottom: 1px solid var(--bdr);
+  transition: background .1s; min-width: 0;
 }
 .lang-row:last-child { border-bottom: none; }
 .lang-row:hover { background: var(--p-lo); }
-.lang-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-.lang-name { font-size: 12px; font-weight: 500; }
+.lang-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; gap: 6px; }
+.lang-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lang-pct {
   font-family: var(--cond);
-  font-size: 26px; font-weight: 900; line-height: 1;
-  color: var(--p); font-feature-settings: "tnum";
+  font-size: 24px; font-weight: 900; line-height: 1;
+  color: var(--p); font-feature-settings: "tnum"; flex-shrink: 0;
 }
-.lang-pct-unit { font-size: 14px; font-weight: 400; }
-.lang-time { font-size: 9px; color: var(--muted); margin-top: 4px; }
+.lang-pct-unit { font-size: 13px; font-weight: 400; }
+.lang-time { font-size: 9px; color: var(--muted); margin-top: 3px; }
 
 /* ── WEEKDAY CHART ── */
-.weekday-wrap { padding: 16px 14px; }
+.weekday-wrap { padding: 14px 12px; }
 .weekday-bars {
-  display: grid; grid-template-columns: repeat(7, 1fr);
-  gap: 6px; align-items: flex-end; height: 72px;
-  margin-bottom: 10px;
+  display: grid; grid-template-columns: repeat(7, minmax(0,1fr));
+  gap: 4px; align-items: flex-end; height: 68px; margin-bottom: 0;
 }
-.wd-bar-wrap {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 4px; height: 100%; justify-content: flex-end;
-}
+.wd-col { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
 .wd-bar {
   width: 100%; background: var(--p); border-radius: 2px 2px 0 0;
   min-height: 3px; transition: opacity .15s;
 }
 .wd-bar:hover { opacity: .6; }
-.wd-day { font-size: 9px; color: var(--muted); letter-spacing: .04em; }
+.weekday-labels {
+  display: grid; grid-template-columns: repeat(7, minmax(0,1fr));
+  gap: 4px; margin-top: 6px;
+}
+.wd-lbl { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.wd-day { font-size: 9px; color: var(--muted); letter-spacing: .03em; }
 .wd-val { font-size: 9px; color: var(--p); font-feature-settings: "tnum"; }
-.peak-day-block {
-  border-top: 1px solid var(--border);
-  padding: 12px 14px;
-}
-.peak-label { font-size: 9px; color: var(--muted); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
-.peak-value {
-  font-family: var(--cond);
-  font-size: 36px; font-weight: 900; color: var(--p); line-height: 1;
-}
-.peak-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.peak-day-block { border-top: 1px solid var(--bdr); padding: 11px 12px; }
+.peak-label { font-size: 9px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 5px; }
+.peak-value { font-family: var(--cond); font-size: 34px; font-weight: 900; color: var(--p); line-height: 1; }
+.peak-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
 
 /* ── CALENDAR HEATMAP ── */
-.cal-container { padding: 14px; overflow-x: auto; }
-.cal-month-labels {
-  position: relative; height: 16px;
-  font-size: 9px; color: var(--muted); margin-bottom: 4px;
-}
+.cal-container { padding: 12px; overflow-x: auto; }
+.cal-month-labels { position: relative; height: 14px; font-size: 9px; color: var(--muted); margin-bottom: 4px; margin-left: 16px; }
 .cal-month-labels span { position: absolute; top: 0; letter-spacing: .04em; }
+.cal-body { display: flex; gap: 3px; }
+.cal-wd-labels { display: flex; flex-direction: column; gap: 3px; margin-right: 3px; flex-shrink: 0; }
+.cal-wd-labels span { font-size: 9px; color: var(--muted); height: 11px; display: flex; align-items: center; }
 .cal-grid { display: flex; gap: 3px; }
 .cal-week { display: flex; flex-direction: column; gap: 3px; }
 .cal-cell {
   width: 11px; height: 11px; border-radius: 2px;
-  background: var(--border); transition: transform .12s; cursor: default;
+  background: var(--bdr); transition: transform .12s; cursor: default; flex-shrink: 0;
 }
 .cal-cell:hover { transform: scale(1.5); z-index: 2; position: relative; }
 .cal-cell.l1 { background: rgba(157,111,212,0.18); }
 .cal-cell.l2 { background: rgba(157,111,212,0.38); }
 .cal-cell.l3 { background: rgba(157,111,212,0.62); }
 .cal-cell.l4 { background: var(--p); }
-.cal-weekday-labels {
-  display: flex; flex-direction: column; gap: 3px;
-  margin-right: 4px; margin-top: 0;
-}
+.cal-weekday-labels { display: flex; flex-direction: column; gap: 3px; margin-right: 4px; }
 
 /* ── MONTH BARS ── */
-.month-list { padding: 10px 14px 16px; }
-.month-row {
-  display: grid; grid-template-columns: 42px 1fr 52px;
-  align-items: center; gap: 8px; padding: 4px 0;
-}
-.month-label { font-size: 9px; color: var(--muted); text-align: right; letter-spacing: .06em; }
+.month-list { padding: 10px 12px 14px; }
+.month-row { display: grid; grid-template-columns: 40px minmax(0,1fr) 46px; align-items: center; gap: 7px; padding: 3px 0; }
+.month-label { font-size: 9px; color: var(--muted); text-align: right; letter-spacing: .05em; }
 .month-val { font-size: 10px; color: var(--p); text-align: right; font-feature-settings: "tnum"; font-weight: 500; }
 
 /* ── TOP DAYS TABLE ── */
-.data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
 .data-table th {
-  text-align: left; font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--muted); padding: 8px 14px; border-bottom: 1px solid var(--border);
-  font-weight: 500; background: var(--surface);
+  text-align: left; font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); padding: 7px 12px; border-bottom: 1px solid var(--bdr);
+  font-weight: 500; background: var(--surf); white-space: nowrap;
 }
-.data-table td { padding: 7px 14px; border-bottom: 1px solid var(--border); }
+.data-table td { padding: 6px 12px; border-bottom: 1px solid var(--bdr); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--p-lo); }
 .td-right { text-align: right; color: var(--p); font-feature-settings: "tnum"; font-weight: 500; }
@@ -515,45 +520,56 @@ canvas { display: block; width: 100%; }
 
 /* ── FOOTER ── */
 .footer {
-  position: fixed; bottom: 0; left: 40px; right: 0; height: 26px;
-  background: var(--bg); border-top: 1px solid var(--border);
+  position: fixed; bottom: 0; left: var(--nav-w); right: 0; height: var(--bot-h);
+  background: var(--bg); border-top: 1px solid var(--bdr);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 18px; font-size: 10px; color: var(--muted); z-index: 80;
+  padding: 0 16px; font-size: 10px; color: var(--muted); z-index: 80;
 }
 .status-dot {
   width: 5px; height: 5px; border-radius: 50%; background: var(--p);
-  display: inline-block; margin-right: 6px;
+  display: inline-block; margin-right: 5px;
   animation: blink 2.4s ease-in-out infinite;
 }
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .2; } }
 
-@media (max-width: 920px) {
-  .kpi-strip { grid-template-columns: repeat(4, 1fr); }
-  .grid-3, .grid-2 { grid-template-columns: 1fr; }
+@media (max-width: 860px) {
+  .kpi-strip { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .grid-3 { grid-template-columns: minmax(0,1fr); }
+  .grid-2 { grid-template-columns: minmax(0,1fr); }
+  .date-range { display: none; }
+}
+@media (max-width: 540px) {
+  .kpi-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 </style>
 </head>
-<body>
+<body class="lang-pt">
 
 <header class="topbar">
   <div class="logo">
     HEILDAMM
-    <span class="logo-eyebrow">time tracker</span>
+    <span class="logo-sub">
+      <span class="pt">rastreador</span><span class="en">time tracker</span>
+    </span>
   </div>
+  <div class="topbar-center">${firstDate} → ${lastDate}</div>
   <div class="topbar-actions">
-    <span style="font-size:10px;color:var(--muted);margin-right:2px">${firstDate} → ${lastDate}</span>
     <button class="btn" onclick="exportData('csv')">↓ CSV</button>
     <button class="btn" onclick="exportData('json')">↓ JSON</button>
+    <div class="lang-toggle" style="margin-left:4px">
+      <button class="btn active" id="btn-pt" onclick="setLang('pt')">PT</button>
+      <button class="btn"        id="btn-en" onclick="setLang('en')">EN</button>
+    </div>
   </div>
 </header>
 
 <nav class="sidenav">
   <a class="nav-item active" href="#overview" title="Overview">◈</a>
-  <a class="nav-item" href="#activity" title="Activity">▦</a>
+  <a class="nav-item" href="#activity" title="Atividade / Activity">▦</a>
   <div class="nav-divider"></div>
   <a class="nav-item" href="#breakdown" title="Breakdown">≡</a>
   <a class="nav-item" href="#heatmap" title="Heatmap">⊞</a>
-  <a class="nav-item" href="#monthly" title="Monthly">◫</a>
+  <a class="nav-item" href="#monthly" title="Mensal / Monthly">◫</a>
 </nav>
 
 <main class="main">
@@ -563,51 +579,66 @@ canvas { display: block; width: 100%; }
     <div class="kpi-strip">
 
       <div class="kpi">
-        <span class="kpi-label">Total coded</span>
-        <div class="kpi-value">${total.hours}<span class="kpi-unit">h</span>&thinsp;${total.minutes}<span class="kpi-unit">m</span></div>
-        <div class="kpi-sub">across all sessions</div>
+        <span class="kpi-label pt">Total codado</span>
+        <span class="kpi-label en">Total coded</span>
+        <div class="kpi-value">${total.hours}<span class="kpi-unit"> h</span>&thinsp;${total.minutes}<span class="kpi-unit"> m</span></div>
+        <div class="kpi-sub pt">em todas as sessões</div>
+        <div class="kpi-sub en">across all sessions</div>
       </div>
 
       <div class="kpi">
-        <span class="kpi-label">Today</span>
-        <div class="kpi-value fg">${todayStats.hours}<span class="kpi-unit">h</span>&thinsp;${todayStats.minutes}<span class="kpi-unit">m</span></div>
-        <div class="kpi-sub">${todayStats.fileCount} files · ${todayStats.languageCount} languages</div>
+        <span class="kpi-label pt">Hoje</span>
+        <span class="kpi-label en">Today</span>
+        <div class="kpi-value fg">${todayStats.hours}<span class="kpi-unit"> h</span>&thinsp;${todayStats.minutes}<span class="kpi-unit"> m</span></div>
+        <div class="kpi-sub pt">${todayStats.fileCount} arquivos · ${todayStats.languageCount} lang</div>
+        <div class="kpi-sub en">${todayStats.fileCount} files · ${todayStats.languageCount} lang</div>
       </div>
 
       <div class="kpi">
-        <span class="kpi-label">Days active</span>
+        <span class="kpi-label pt">Dias ativos</span>
+        <span class="kpi-label en">Days active</span>
         <div class="kpi-value">${totalDays}</div>
-        <div class="kpi-sub">unique days</div>
+        <div class="kpi-sub pt">dias únicos</div>
+        <div class="kpi-sub en">unique days</div>
       </div>
 
       <div class="kpi">
-        <span class="kpi-label">Streak</span>
+        <span class="kpi-label pt">Sequência</span>
+        <span class="kpi-label en">Streak</span>
         <div class="kpi-value">${streak}</div>
-        <div class="kpi-sub">days running</div>
+        <div class="kpi-sub pt">dias seguidos</div>
+        <div class="kpi-sub en">days running</div>
       </div>
 
       <div class="kpi">
-        <span class="kpi-label">Avg / day</span>
-        <div class="kpi-value fg">${Math.floor(avgHoursPerDay)}<span class="kpi-unit">h</span></div>
-        <div class="kpi-sub">${Math.round((avgHoursPerDay % 1) * 60)}m on active days</div>
+        <span class="kpi-label pt">Média / dia</span>
+        <span class="kpi-label en">Avg / day</span>
+        <div class="kpi-value fg">${Math.floor(avgHoursPerDay)}<span class="kpi-unit"> h</span></div>
+        <div class="kpi-sub pt">${Math.round((avgHoursPerDay % 1) * 60)}m nos dias ativos</div>
+        <div class="kpi-sub en">${Math.round((avgHoursPerDay % 1) * 60)}m on active days</div>
       </div>
 
       <div class="kpi">
-        <span class="kpi-label">Peak day</span>
-        <div class="kpi-value">${busyDay ? busyDay.hours : 0}<span class="kpi-unit">h</span></div>
+        <span class="kpi-label pt">Dia pico</span>
+        <span class="kpi-label en">Peak day</span>
+        <div class="kpi-value">${busyDay ? busyDay.hours : 0}<span class="kpi-unit"> h</span></div>
         <div class="kpi-sub">${busyDay ? busyDay.date : "—"}</div>
       </div>
 
       <div class="kpi">
-        <span class="kpi-label">Sessions</span>
+        <span class="kpi-label pt">Sessões</span>
+        <span class="kpi-label en">Sessions</span>
         <div class="kpi-value fg">${totalEntries}</div>
-        <div class="kpi-sub">file sessions</div>
+        <div class="kpi-sub pt">sessões de arquivo</div>
+        <div class="kpi-sub en">file sessions</div>
       </div>
 
       <div class="kpi">
-        <span class="kpi-label">Languages</span>
+        <span class="kpi-label pt">Linguagens</span>
+        <span class="kpi-label en">Languages</span>
         <div class="kpi-value">${languages.length}</div>
-        <div class="kpi-sub">detected</div>
+        <div class="kpi-sub pt">detectadas</div>
+        <div class="kpi-sub en">detected</div>
       </div>
 
     </div>
@@ -615,7 +646,9 @@ canvas { display: block; width: 100%; }
 
   <!-- DAILY ACTIVITY CHART -->
   <div id="activity" class="section">
-    <div class="section-label">Daily activity</div>
+    <div class="section-label">
+      <span class="pt">atividade diária</span><span class="en">daily activity</span>
+    </div>
     <div class="chart-card">
       <div class="chart-toolbar">
         <button class="btn" data-range="7">7D</button>
@@ -623,23 +656,23 @@ canvas { display: block; width: 100%; }
         <button class="btn" data-range="30">30D</button>
         <button class="btn" data-range="90">90D</button>
         <button class="btn" data-range="180">6M</button>
-        <button class="btn" data-range="365">1Y</button>
-        <button class="btn active" data-range="all">All</button>
+        <button class="btn" data-range="365">1A</button>
+        <button class="btn active" data-range="all"><span class="pt">Tudo</span><span class="en">All</span></button>
         <div class="toolbar-sep"></div>
         <div class="date-range">
-          <span>from</span>
+          <span class="pt">de</span><span class="en">from</span>
           <input type="date" id="date-from"/>
-          <span>to</span>
+          <span class="pt">até</span><span class="en">to</span>
           <input type="date" id="date-to"/>
-          <button class="btn" id="apply-range">apply</button>
+          <button class="btn" id="apply-range"><span class="pt">aplicar</span><span class="en">apply</span></button>
         </div>
       </div>
       <div class="chart-area">
         <canvas id="main-chart" height="200"></canvas>
       </div>
       <div class="chart-footer">
-        <span><span class="legend-pip"></span>hours per day</span>
-        <span style="opacity:.5">— avg</span>
+        <span><span class="legend-pip"></span><span class="pt">horas por dia</span><span class="en">hours per day</span></span>
+        <span style="opacity:.45">— <span class="pt">média</span><span class="en">avg</span></span>
         <span style="margin-left:auto" id="chart-summary"></span>
       </div>
     </div>
@@ -647,20 +680,22 @@ canvas { display: block; width: 100%; }
 
   <!-- BREAKDOWN -->
   <div id="breakdown" class="section">
-    <div class="section-label">Breakdown</div>
+    <div class="section-label">breakdown</div>
     <div class="grid-3">
 
-      <div class="panel" style="max-height:480px">
+      <div class="panel" style="max-height:460px">
         <div class="panel-header">
-          <span class="panel-title">Top Files</span>
+          <span class="panel-title pt">Top Arquivos</span>
+          <span class="panel-title en">Top Files</span>
           <span class="panel-meta" id="files-count"></span>
         </div>
         <div class="panel-body" id="files-list"></div>
       </div>
 
-      <div class="panel" style="max-height:480px">
+      <div class="panel" style="max-height:460px">
         <div class="panel-header">
-          <span class="panel-title">Languages</span>
+          <span class="panel-title pt">Linguagens</span>
+          <span class="panel-title en">Languages</span>
           <span class="panel-meta" id="lang-count"></span>
         </div>
         <div class="panel-body" id="lang-list"></div>
@@ -668,12 +703,14 @@ canvas { display: block; width: 100%; }
 
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">By Weekday</span>
-          <span class="panel-meta">avg per day</span>
+          <span class="panel-title pt">Por Dia da Semana</span>
+          <span class="panel-title en">By Weekday</span>
+          <span class="panel-meta pt">média</span>
+          <span class="panel-meta en">avg</span>
         </div>
         <div class="weekday-wrap">
           <div class="weekday-bars" id="weekday-bars"></div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px" id="weekday-labels"></div>
+          <div class="weekday-labels" id="weekday-labels"></div>
         </div>
         <div class="peak-day-block" id="peak-day"></div>
       </div>
@@ -683,27 +720,30 @@ canvas { display: block; width: 100%; }
 
   <!-- HEATMAP -->
   <div id="heatmap" class="section">
-    <div class="section-label" style="justify-content:space-between">
-      <span style="letter-spacing:.22em;font-size:9px;font-weight:600;text-transform:uppercase;color:var(--muted)">Contribution heatmap</span>
-      <span style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted)">
-        less
-        <span style="width:10px;height:10px;background:var(--border);border-radius:2px;display:inline-block"></span>
+    <div class="section-label" style="justify-content:space-between;gap:12px">
+      <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);white-space:nowrap">
+        <span class="pt">mapa de calor</span><span class="en">contribution heatmap</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:3px;font-size:9px;color:var(--muted);flex-shrink:0">
+        <span class="pt">menos</span><span class="en">less</span>
+        <span style="width:10px;height:10px;background:var(--bdr);border-radius:2px;display:inline-block"></span>
         <span style="width:10px;height:10px;background:rgba(157,111,212,0.18);border-radius:2px;display:inline-block"></span>
         <span style="width:10px;height:10px;background:rgba(157,111,212,0.38);border-radius:2px;display:inline-block"></span>
         <span style="width:10px;height:10px;background:rgba(157,111,212,0.62);border-radius:2px;display:inline-block"></span>
         <span style="width:10px;height:10px;background:var(--p);border-radius:2px;display:inline-block"></span>
-        more
+        <span class="pt">mais</span><span class="en">more</span>
       </span>
     </div>
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title">52-week view</span>
+        <span class="panel-title pt">Visão de 52 semanas</span>
+        <span class="panel-title en">52-week view</span>
         <span class="panel-meta" id="cal-meta"></span>
       </div>
       <div class="cal-container">
         <div class="cal-month-labels" id="cal-months"></div>
-        <div style="display:flex;gap:3px">
-          <div style="display:flex;flex-direction:column;gap:3px;margin-right:2px;margin-top:0;padding-top:0" id="cal-weekday-labels"></div>
+        <div class="cal-body">
+          <div class="cal-wd-labels" id="cal-wd-labels"></div>
           <div class="cal-grid" id="cal-grid"></div>
         </div>
       </div>
@@ -712,12 +752,15 @@ canvas { display: block; width: 100%; }
 
   <!-- MONTHLY + TOP DAYS -->
   <div id="monthly" class="section">
-    <div class="section-label">Monthly &amp; top days</div>
+    <div class="section-label">
+      <span class="pt">mensal &amp; top dias</span><span class="en">monthly &amp; top days</span>
+    </div>
     <div class="grid-2">
 
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Hours per month</span>
+          <span class="panel-title pt">Horas por mês</span>
+          <span class="panel-title en">Hours per month</span>
           <span class="panel-meta" id="months-range"></span>
         </div>
         <div class="month-list" id="month-bars"></div>
@@ -725,18 +768,27 @@ canvas { display: block; width: 100%; }
 
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Top 15 days</span>
-          <span class="panel-meta">all time</span>
+          <span class="panel-title pt">Top 15 dias</span>
+          <span class="panel-title en">Top 15 days</span>
+          <span class="panel-meta pt">todos os tempos</span>
+          <span class="panel-meta en">all time</span>
         </div>
-        <div class="panel-body" style="max-height:380px">
-          <table class="data-table">
+        <div class="panel-body" style="max-height:360px">
+          <table class="data-table" style="table-layout:fixed">
+            <colgroup>
+              <col style="width:28px">
+              <col style="width:auto">
+              <col style="width:36px">
+              <col style="width:68px">
+              <col style="width:44px">
+            </colgroup>
             <thead>
               <tr>
                 <th>#</th>
-                <th>Date</th>
-                <th>Day</th>
-                <th style="text-align:right">Time</th>
-                <th style="text-align:right">Files</th>
+                <th><span class="pt">Data</span><span class="en">Date</span></th>
+                <th><span class="pt">Dia</span><span class="en">Day</span></th>
+                <th style="text-align:right"><span class="pt">Tempo</span><span class="en">Time</span></th>
+                <th style="text-align:right"><span class="pt">Arq.</span><span class="en">Files</span></th>
               </tr>
             </thead>
             <tbody id="top-days-body"></tbody>
@@ -750,7 +802,12 @@ canvas { display: block; width: 100%; }
 </main>
 
 <footer class="footer">
-  <span><span class="status-dot"></span>${totalDays} days · ${totalEntries} sessions · ${languages.length} languages</span>
+  <span>
+    <span class="status-dot"></span>
+    ${totalDays} <span class="pt">dias</span><span class="en">days</span> ·
+    ${totalEntries} <span class="pt">sessões</span><span class="en">sessions</span> ·
+    ${languages.length} <span class="pt">linguagens</span><span class="en">languages</span>
+  </span>
   <span id="footer-clock"></span>
 </footer>
 
@@ -764,10 +821,31 @@ const WEEKDAYS   = ${weekdayJson};
 const MONTH_DATA = ${monthDataJson};
 const TOTAL_SECS = ${totalSeconds};
 
+const DAYS_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const DAYS_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let LANG = 'pt';
+
 document.getElementById('footer-clock').textContent = new Date().toLocaleTimeString();
 
 const vscode = acquireVsCodeApi();
 function exportData(f) { vscode.postMessage({ command: 'export', format: f }); }
+
+function setLang(lang) {
+  LANG = lang;
+  document.body.className = 'lang-' + lang;
+  document.getElementById('btn-pt').classList.toggle('active', lang === 'pt');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  renderWeekdays();
+  renderPeakDay();
+  renderTopDays();
+  updateCalMeta();
+  redrawChartSummary();
+}
+
+function getDayName(dateStr) {
+  const dow = new Date(dateStr + 'T00:00:00').getDay();
+  return LANG === 'pt' ? DAYS_PT[dow] : DAYS_EN[dow];
+}
 
 function fmtSecs(s) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
@@ -778,24 +856,18 @@ function fmtSecs(s) {
 const tt = document.getElementById('tt');
 function showTip(e, html) {
   tt.innerHTML = html;
-  const x = Math.min(e.clientX + 16, window.innerWidth - 180);
+  const x = Math.min(e.clientX + 14, window.innerWidth - 170);
+  const y = Math.max(e.clientY - 10, 8);
   tt.style.left = x + 'px';
-  tt.style.top = (e.clientY - 10) + 'px';
+  tt.style.top  = y + 'px';
   tt.classList.add('on');
 }
 function hideTip() { tt.classList.remove('on'); }
-document.addEventListener('mousemove', e => {
-  if (tt.classList.contains('on')) {
-    const x = Math.min(e.clientX + 16, window.innerWidth - 180);
-    tt.style.left = x + 'px';
-    tt.style.top = (e.clientY - 10) + 'px';
-  }
-});
 
 // ── FILES ──────────────────────────────────────────
 (function () {
   const maxD = Math.max(...TOP_FILES.map(f => f.duration), 1);
-  document.getElementById('files-count').textContent = TOP_FILES.length + ' files';
+  document.getElementById('files-count').textContent = TOP_FILES.length;
   document.getElementById('files-list').innerHTML = TOP_FILES.map((f, i) => {
     const pct = TOTAL_SECS > 0 ? Math.round(f.duration / TOTAL_SECS * 100) : 0;
     const bar = Math.round(f.duration / maxD * 100);
@@ -820,7 +892,7 @@ document.addEventListener('mousemove', e => {
 // ── LANGUAGES ──────────────────────────────────────
 (function () {
   const tot = LANGUAGES.reduce((s, l) => s + l.duration, 0);
-  document.getElementById('lang-count').textContent = LANGUAGES.length + ' languages';
+  document.getElementById('lang-count').textContent = LANGUAGES.length;
   document.getElementById('lang-list').innerHTML = LANGUAGES.map(l => {
     const pct = tot > 0 ? Math.round(l.duration / tot * 100) : 0;
     return \`<div class="lang-row">
@@ -835,34 +907,47 @@ document.addEventListener('mousemove', e => {
 })();
 
 // ── WEEKDAY ────────────────────────────────────────
-(function () {
+function renderWeekdays() {
   const maxAvg = Math.max(...WEEKDAYS.map(w => w.avgSeconds), 1);
-  const barsEl = document.getElementById('weekday-bars');
+  const barsEl   = document.getElementById('weekday-bars');
   const labelsEl = document.getElementById('weekday-labels');
+  barsEl.innerHTML = ''; labelsEl.innerHTML = '';
 
   WEEKDAYS.forEach(w => {
-    const h = Math.round(w.avgSeconds / maxAvg * 100);
-    const bar = document.createElement('div');
-    bar.className = 'wd-bar-wrap';
-    bar.innerHTML = \`<div class="wd-bar" style="height:\${h}%" title="\${fmtSecs(w.avgSeconds)} avg"></div>\`;
-    bar.addEventListener('mouseenter', e => {
-      showTip(e, \`<div class="tooltip-date">\${w.label}</div><div class="tooltip-row">avg <span>\${fmtSecs(w.avgSeconds)}</span></div><div class="tooltip-row">sessions <span>\${w.days}</span></div>\`);
+    const h     = Math.round(w.avgSeconds / maxAvg * 100);
+    const label = LANG === 'pt' ? w.labelPt : w.labelEn;
+
+    const col = document.createElement('div');
+    col.className = 'wd-col';
+    col.innerHTML = \`<div class="wd-bar" style="height:\${h}%"></div>\`;
+    col.addEventListener('mouseenter', e => {
+      const avgLbl  = LANG === 'pt' ? 'média'   : 'avg';
+      const sessLbl = LANG === 'pt' ? 'sessões' : 'sessions';
+      showTip(e, \`<div class="tooltip-date">\${label}</div><div class="tooltip-row">\${avgLbl} <span>\${fmtSecs(w.avgSeconds)}</span></div><div class="tooltip-row">\${sessLbl} <span>\${w.days}</span></div>\`);
     });
-    bar.addEventListener('mouseleave', hideTip);
-    barsEl.appendChild(bar);
+    col.addEventListener('mouseleave', hideTip);
+    barsEl.appendChild(col);
 
     const lbl = document.createElement('div');
-    lbl.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px';
-    lbl.innerHTML = \`<span class="wd-day">\${w.label.slice(0,2)}</span><span class="wd-val">\${fmtSecs(w.avgSeconds)}</span>\`;
+    lbl.className = 'wd-lbl';
+    lbl.innerHTML = \`<span class="wd-day">\${label.slice(0,2)}</span><span class="wd-val">\${fmtSecs(w.avgSeconds)}</span>\`;
     labelsEl.appendChild(lbl);
   });
+}
+renderWeekdays();
 
-  const best = WEEKDAYS.reduce((a, b) => b.avgSeconds > a.avgSeconds ? b : a, WEEKDAYS[0]);
+function renderPeakDay() {
+  const best    = WEEKDAYS.reduce((a, b) => b.avgSeconds > a.avgSeconds ? b : a, WEEKDAYS[0]);
+  const label   = LANG === 'pt' ? best.labelPt : best.labelEn;
+  const title   = LANG === 'pt' ? 'Dia pico da semana' : 'Peak weekday';
+  const avgLbl  = LANG === 'pt' ? 'média'   : 'avg';
+  const sessLbl = LANG === 'pt' ? 'sessões' : 'sessions';
   document.getElementById('peak-day').innerHTML = \`
-    <div class="peak-label">Peak weekday</div>
-    <div class="peak-value">\${best.label}</div>
-    <div class="peak-sub">avg \${fmtSecs(best.avgSeconds)} · \${best.days} sessions</div>\`;
-})();
+    <div class="peak-label">\${title}</div>
+    <div class="peak-value">\${label}</div>
+    <div class="peak-sub">\${avgLbl} \${fmtSecs(best.avgSeconds)} · \${best.days} \${sessLbl}</div>\`;
+}
+renderPeakDay();
 
 // ── MONTH BARS ─────────────────────────────────────
 (function () {
@@ -880,11 +965,10 @@ document.addEventListener('mousemove', e => {
 })();
 
 // ── TOP DAYS ───────────────────────────────────────
-(function () {
-  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function renderTopDays() {
   const sorted = [...RAW_DAYS].sort((a, b) => b.hours - a.hours).slice(0, 15);
   document.getElementById('top-days-body').innerHTML = sorted.map((d, i) => {
-    const dow = DAYS[new Date(d.date + 'T00:00:00').getDay()];
+    const dow = getDayName(d.date);
     const h = Math.floor(d.hours), m = Math.round((d.hours % 1) * 60);
     return \`<tr>
       <td class="td-muted">\${i + 1}</td>
@@ -894,14 +978,22 @@ document.addEventListener('mousemove', e => {
       <td class="td-right">\${d.files}</td>
     </tr>\`;
   }).join('');
-})();
+}
+renderTopDays();
 
 // ── CALENDAR HEATMAP ───────────────────────────────
+let _calActiveDays = 0;
+function updateCalMeta() {
+  document.getElementById('cal-meta').textContent =
+    LANG === 'pt' ? _calActiveDays + ' dias ativos' : _calActiveDays + ' active days';
+}
+
 (function () {
   const dayMap = {};
   RAW_DAYS.forEach(d => { dayMap[d.date] = d.hours; });
   const vals = Object.values(dayMap).filter(v => v > 0);
   const maxH = vals.length ? Math.max(...vals) : 1;
+  _calActiveDays = vals.length;
 
   function lvl(h) {
     if (!h) return '';
@@ -916,16 +1008,14 @@ document.addEventListener('mousemove', e => {
   start.setDate(start.getDate() - 363);
   start.setDate(start.getDate() - start.getDay());
 
-  const grid = document.getElementById('cal-grid');
+  const grid     = document.getElementById('cal-grid');
   const monthsEl = document.getElementById('cal-months');
-  const wdLabels = document.getElementById('cal-weekday-labels');
-  grid.innerHTML = ''; monthsEl.innerHTML = '';
+  const wdEl     = document.getElementById('cal-wd-labels');
 
-  ['M', '', 'W', '', 'F'].forEach((l, i) => {
+  ['M', '', 'W', '', 'F', '', ''].forEach(l => {
     const s = document.createElement('span');
     s.textContent = l;
-    s.style.cssText = \`font-size:9px;color:var(--muted);height:11px;display:flex;align-items:center;\${i < 4 ? 'margin-bottom:3px' : ''}\`;
-    wdLabels.appendChild(s);
+    wdEl.appendChild(s);
   });
 
   let lastM = -1, weekIdx = 0;
@@ -942,11 +1032,13 @@ document.addEventListener('mousemove', e => {
 
     for (let i = 0; i < 7; i++) {
       const ds = d.toISOString().split('T')[0];
-      const h = dayMap[ds] || 0;
+      const h  = dayMap[ds] || 0;
       const cell = document.createElement('div');
       cell.className = 'cal-cell ' + lvl(h);
       cell.addEventListener('mouseenter', e => {
-        showTip(e, \`<div class="tooltip-date">\${ds}</div><div class="tooltip-row">\${h > 0 ? h.toFixed(1) + 'h coded' : 'no activity'}</div>\`);
+        const coded = LANG === 'pt' ? 'h codadas' : 'h coded';
+        const none  = LANG === 'pt' ? 'sem atividade' : 'no activity';
+        showTip(e, \`<div class="tooltip-date">\${ds}</div><div class="tooltip-row">\${h > 0 ? h.toFixed(1) + coded : none}</div>\`);
       });
       cell.addEventListener('mouseleave', hideTip);
       wk.appendChild(cell);
@@ -956,10 +1048,17 @@ document.addEventListener('mousemove', e => {
     grid.appendChild(wk);
     weekIdx++;
   }
-
-  const activeDays = vals.length;
-  document.getElementById('cal-meta').textContent = activeDays + ' active days';
+  updateCalMeta();
 })();
+
+function redrawChartSummary() {
+  const el = document.getElementById('chart-summary');
+  if (!el.dataset.total) return;
+  const t = el.dataset.total, a = el.dataset.avg;
+  el.textContent = LANG === 'pt'
+    ? 'total ' + t + 'h · média ' + a + 'h/dia'
+    : 'total ' + t + 'h · avg '   + a + 'h/day';
+}
 
 // ── MAIN CHART ─────────────────────────────────────
 const canvas = document.getElementById('main-chart');
@@ -975,10 +1074,12 @@ function drawChart(data) {
 
   const totalH = data.reduce((s, d) => s + d.hours, 0);
   const avgH = totalH / data.length;
-  summaryEl.textContent = 'total ' + totalH.toFixed(1) + 'h · avg ' + avgH.toFixed(1) + 'h/day';
+  summaryEl.dataset.total = totalH.toFixed(1);
+  summaryEl.dataset.avg   = avgH.toFixed(1);
+  redrawChartSummary();
 
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.parentElement.clientWidth - 28;
+  const W = canvas.parentElement.clientWidth - 24;
   const H = 210;
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
@@ -1058,7 +1159,7 @@ canvas.addEventListener('mousemove', e => {
   if (idx < 0 || idx >= canvas._data.length) { hideTip(); return; }
   const d = canvas._data[idx];
   const h = Math.floor(d.hours), m = Math.round((d.hours % 1) * 60);
-  showTip(e, \`<div class="tooltip-date">\${d.date} \${d.label}</div><div class="tooltip-row">time <span>\${h}h \${m}m</span></div><div class="tooltip-row">files <span>\${d.files}</span></div>\`);
+  showTip(e, \`<div class="tooltip-date">\${d.date} \${d.label}</div><div class="tooltip-row">\${LANG==='pt'?'tempo':'time'} <span>\${h}h \${m}m</span></div><div class="tooltip-row">\${LANG==='pt'?'arquivos':'files'} <span>\${d.files}</span></div>\`);
 });
 canvas.addEventListener('mouseleave', hideTip);
 
@@ -1121,7 +1222,7 @@ window.addEventListener('resize', () => drawChart(activeData));
       };
     });
     return Object.values(dayMap).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
   }
 

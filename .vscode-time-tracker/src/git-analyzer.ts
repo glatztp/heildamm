@@ -1,5 +1,6 @@
 import { execSync } from "child_process";
 import * as path from "path";
+import { getLocalDateString } from "./constants";
 
 export interface GitCommit {
   hash: string;
@@ -65,7 +66,7 @@ export class GitAnalyzer {
         .map((line) => {
           const [hash, shortHash, author, timestamp, message] = line.split("|");
           const date = new Date(timestamp);
-          const dateStr = date.toISOString().split("T")[0];
+          const dateStr = getLocalDateString(date);
 
           return {
             hash,
@@ -142,7 +143,7 @@ export class GitAnalyzer {
         .map((line) => {
           const [hash, shortHash, author, timestamp, message] = line.split("|");
           const date = new Date(timestamp);
-          const dateStr = date.toISOString().split("T")[0];
+          const dateStr = getLocalDateString(date);
 
           return {
             hash,
