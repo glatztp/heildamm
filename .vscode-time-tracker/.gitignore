@@ -3,3 +3,6 @@ dist/
 *.vsix
 .DS_Store
 out/
+
+.encryption-key
+.vscode-time-tracker/.encryption-key

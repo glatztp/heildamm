@@ -1,8 +1,8 @@
 {
   "name": "heildamm-time-tracker",
   "displayName": "Heildamm Time Tracker",
-  "description": "Rastreia tempo de atividade em tempo real sem limites",
-  "version": "1.6.0",
+  "description": "Track time spent on projects, with a dashboard and data export features.",
+  "version": "1.6.1",
   "publisher": "heildamm",
   "icon": "public/favicon.ico",
   "repository": {

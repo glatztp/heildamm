@@ -23,7 +23,6 @@ let statusBar: vscode.StatusBarItem;
 let statusBarMode: "total" | "project" = "total";
 
 let lockFile: string;
-const instanceId = Date.now().toString();
 let isMainInstance = false;
 
 function acquireLock(): boolean {
@@ -304,6 +303,8 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     context,
     (entry) => {
       storage.saveEntry(entry);
+      webviewPanel.notifyDataUpdate();
+      updateStatusBar();
     },
     idleTimeMinutes * 60 * 1000,
   );
@@ -378,7 +379,9 @@ export function activate(extensionContext: vscode.ExtensionContext): void {
     }),
   );
 
-  console.log(`${StatusMessages.ACTIVATED}: ${context.getAuthor()} | main=${isMainInstance}`);
+  console.log(
+    `${StatusMessages.ACTIVATED}: ${context.getAuthor()} | main=${isMainInstance}`,
+  );
 }
 
 export function deactivate(): void {

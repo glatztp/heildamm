@@ -70,11 +70,13 @@ npm run test
 Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) and type any of the following commands:
 
 #### Analytics & Reporting
+
 - **Show All Stats**: View total time, top files, and language breakdown
 - **Show Today**: Display today's tracking summary
 - **Generate Software Archaeology Report**: Analyze time investment per git commit
 
 #### Data Management
+
 - **Open Dashboard**: Open the interactive dashboard for visual analytics
 - **Export Data to CSV**: Export tracking data in spreadsheet-friendly format
 - **Export Data to Markdown**: Export as markdown report with summaries
@@ -82,6 +84,7 @@ Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) and type any of the following c
 - **Clear Data**: Remove all tracking data (with confirmation)
 
 #### Display
+
 - **Toggle Status Bar**: Switch between total time and per-project time display
 
 ### Status Bar
@@ -185,6 +188,32 @@ pnpm activity
 ```
 
 This command displays both git commits and VS Code time tracking in a unified report.
+
+---
+
+## Security
+
+### Data Encryption
+
+All tracking data is encrypted automatically using **AES-256-GCM** to prevent unauthorized access or modification:
+
+- **Random Encryption Keys**: Each user's data is protected with a cryptographically random 256-bit key
+- **Machine-Locked Storage**: Keys are stored locally in `~/.heildamm-time-tracker/.encryption-key` (never committed to repositories)
+- **Tampering Detection**: GCM authentication ensures data integrity
+- **Transparent Encryption**: Automatic encryption/decryption on read/write operations
+
+### Important Notes
+
+- The `.encryption-key` file is **sensitive** - do not share or backup without proper security measures
+- Data is encrypted at rest and cannot be manually edited without the encryption key
+- Different users on the same machine get different encryption keys
+- Encryption is automatic - no configuration needed
+
+### Privacy
+
+- All data remains on your local machine
+- No tracking data is sent to external services
+- Git integration only reads local git history (no external API calls)
 
 ---
 

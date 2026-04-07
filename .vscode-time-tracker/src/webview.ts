@@ -21,6 +21,37 @@ export class WebviewPanel {
     this.stats = stats;
   }
 
+  notifyDataUpdate(): void {
+    if (!this.panel) return;
+
+    const allData = this.storage.getAllData();
+    const todayData = this.storage.getTodayData();
+
+    const total = this.stats.calculateTotal(allData);
+    const todayStats = this.stats.getTodayStats(todayData);
+    const topFiles = this.stats.getTopFiles(allData, 30);
+    const languages = this.stats.getLanguageBreakdown(allData);
+
+    this.panel.webview.postMessage({
+      type: "dataUpdate",
+      data: {
+        total: { ...total },
+        todayStats: { ...todayStats },
+        topFiles: topFiles.map((f) => ({
+          file: f.file,
+          language: f.language,
+          duration: f.duration,
+          label: this.stats.formatDuration(f.duration),
+        })),
+        languages: languages.map((l) => ({
+          language: l.language,
+          duration: l.duration,
+          label: this.stats.formatDuration(l.duration),
+        })),
+      },
+    });
+  }
+
   show(extensionUri: vscode.Uri): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Two);
@@ -880,6 +911,15 @@ document.getElementById('footer-clock').textContent = new Date().toLocaleTimeStr
 
 const vscode = acquireVsCodeApi();
 function exportData(f) { vscode.postMessage({ command: 'export', format: f }); }
+
+// Listener para atualizações em tempo real
+window.addEventListener('message', event => {
+  const message = event.data;
+  if (message.type === 'dataUpdate') {
+    // Recarrega o conteúdo do webview com os novos dados
+    location.reload();
+  }
+});
 
 function setLang(lang) {
   LANG = lang;

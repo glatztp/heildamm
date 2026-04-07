@@ -17,6 +17,10 @@ yarn.lock
 # Environment files
 .env*
 
+# Encryption keys (sensitive, never commit)
+.encryption-key
+.vscode-time-tracker/.encryption-key
+
 .next/
 
 # OS

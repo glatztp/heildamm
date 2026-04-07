@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { STORAGE_DIR_NAME, getLocalDateString } from "./constants";
 import { BackupRecoveryService } from "./backup-recovery-service";
+import { EncryptionService } from "./crypto";
 
 export interface TimeEntry {
   timestamp: number;
@@ -21,10 +22,12 @@ export interface DailyStats {
 export class StorageService {
   private dataDir: string;
   private backupService: BackupRecoveryService;
+  private encryptionService: EncryptionService;
 
   constructor() {
     this.dataDir = this.getDataDir();
     this.backupService = new BackupRecoveryService();
+    this.encryptionService = new EncryptionService();
     this.backupService.initialize();
     this.backupService.verifyAndRepair();
   }
@@ -41,7 +44,7 @@ export class StorageService {
     }
   }
 
-  saveEntry(entry: TimeEntry): void {
+  async saveEntry(entry: TimeEntry): Promise<void> {
     this.ensureDirectory();
     const cleanedEntry = this.backupService.ensureDataIntegrity(entry);
 
@@ -52,9 +55,14 @@ export class StorageService {
 
     if (fs.existsSync(filepath)) {
       try {
-        dailyData = JSON.parse(
-          fs.readFileSync(filepath, "utf-8"),
-        ) as DailyStats;
+        const fileContent = fs.readFileSync(filepath, "utf-8");
+        if (this.encryptionService.isEncrypted(fileContent)) {
+          dailyData = (await this.encryptionService.decrypt(
+            fileContent,
+          )) as DailyStats;
+        } else {
+          dailyData = JSON.parse(fileContent) as DailyStats;
+        }
       } catch (error) {
         console.error("Failed to parse daily stats:", error);
         const recovered = this.backupService.recoverFromBackup(today);
@@ -65,13 +73,37 @@ export class StorageService {
     }
 
     dailyData.entries.push(cleanedEntry);
-    fs.writeFileSync(filepath, JSON.stringify(dailyData, null, 2));
+    const encryptedData = await this.encryptionService.encrypt(dailyData);
+    fs.writeFileSync(filepath, encryptedData);
     this.backupService.backupDailyStats(dailyData);
   }
 
   getAllData(): DailyStats[] {
     this.ensureDirectory();
-    return this.backupService.getAllDataWithRecovery();
+    const files = fs
+      .readdirSync(this.dataDir)
+      .filter((f) => f.endsWith(".json"));
+
+    return files
+      .map((file) => {
+        try {
+          const filepath = path.join(this.dataDir, file);
+          const fileContent = fs.readFileSync(filepath, "utf-8");
+          let data: DailyStats;
+
+          if (this.encryptionService.isEncrypted(fileContent)) {
+            data = this.encryptionService.decrypt(fileContent) as DailyStats;
+          } else {
+            data = JSON.parse(fileContent) as DailyStats;
+          }
+
+          return data;
+        } catch (error) {
+          console.error(`Failed to read file ${file}:`, error);
+          return null;
+        }
+      })
+      .filter((data): data is DailyStats => data !== null);
   }
 
   getTodayData(): DailyStats | null {
@@ -84,7 +116,15 @@ export class StorageService {
     }
 
     try {
-      const data = JSON.parse(fs.readFileSync(filepath, "utf-8")) as DailyStats;
+      const fileContent = fs.readFileSync(filepath, "utf-8");
+      let data: DailyStats;
+
+      if (this.encryptionService.isEncrypted(fileContent)) {
+        data = this.encryptionService.decrypt(fileContent) as DailyStats;
+      } else {
+        data = JSON.parse(fileContent) as DailyStats;
+      }
+
       if (!data.date || !Array.isArray(data.entries)) {
         throw new Error("Invalid DailyStats structure");
       }
