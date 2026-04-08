@@ -1,7 +1,0 @@
-node_modules
-src
-dist/*.map
-*.vsix
-.DS_Store
-.git
-.gitignore
